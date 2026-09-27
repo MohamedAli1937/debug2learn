@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Debug2Learn
 
 Debug2Learn is an AI-assisted debugging tutor. It helps developers understand a failure, inspect evidence, form a hypothesis, and validate their own fix instead of silently generating code for them.
@@ -120,3 +121,20 @@ Debug2Learn/
 - Keep deterministic analysis separate from model-generated interpretation.
 - Never expose secrets in the frontend.
 - Report unavailable AI services honestly instead of fabricating answers.
+=======
+---
+title: Debug2learn
+emoji: 😻
+colorFrom: green
+colorTo: yellow
+sdk: gradio
+sdk_version: 6.28.0
+python_version: '3.12'
+app_file: app.py
+pinned: false
+license: mit
+short_description: AI-powered educational debugging game
+---
+
+Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference
+>>>>>>> 243b478bc7ad737db7a016aa42c659346ba8b0eb
