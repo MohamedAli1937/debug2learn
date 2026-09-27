@@ -34,6 +34,7 @@ from debug2learn.agents.solver import SolverAgent
 from debug2learn.agents.tracker import TrackerAgent
 from debug2learn.config.settings import AppConfig, load_config
 from debug2learn.core.models import SessionPhase, ValidationState
+from debug2learn.repository import RepositoryError, acquire_repository
 from debug2learn.core.state import StateManager
 
 # ── App Setup ────────────────────────────────────────────────
@@ -41,8 +42,12 @@ app = FastAPI(title="Debugging Jungle", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=[
+        "https://mohamedali1937.github.io",
+        "http://127.0.0.1:8000",
+        "http://localhost:8000",
+    ],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -66,11 +71,15 @@ _session: dict = {
     "files_to_track": [],
     "hint_counter": 0,
     "target_project": None,
+    "temp_repo": None,
 }
 
 
 def _reset_session():
     """Reset the global session state."""
+    temp_repo = _session.get("temp_repo")
+    if temp_repo:
+        temp_repo.cleanup()
     _session.update({
         "active": False,
         "config": None,
@@ -88,6 +97,7 @@ def _reset_session():
         "files_to_track": [],
         "hint_counter": 0,
         "target_project": None,
+        "temp_repo": None,
     })
 
 
@@ -100,8 +110,10 @@ def _require_session():
 # ── Request / Response Models ────────────────────────────────
 
 class StartRequest(BaseModel):
-    project_path: str
-    bug_description: str
+    project_url: str | None = None
+    bug_report: str | None = None
+    project_path: str | None = None
+    bug_description: str | None = None
 
 
 class AskRequest(BaseModel):
@@ -156,17 +168,25 @@ async def start_session(req: StartRequest):
     messages: list[dict] = []
 
     try:
-        target_project = Path(req.project_path).resolve()
-        if not target_project.exists():
-            raise HTTPException(status_code=400, detail=f"Directory not found: {target_project}")
+        if req.project_url:
+            temp_repo, target_project = acquire_repository(req.project_url)
+            _session["temp_repo"] = temp_repo
+            config = load_config()
+            config.project_path = target_project
+        elif req.project_path:
+            target_project = Path(req.project_path).resolve()
+            if not target_project.exists():
+                raise HTTPException(status_code=400, detail=f"Directory not found: {target_project}")
+            config = load_config(target_project)
+        else:
+            raise HTTPException(status_code=400, detail="A public GitHub project_url is required.")
 
-        config = load_config(target_project)
         state_mgr = StateManager()
         _session["config"] = config
         _session["state_mgr"] = state_mgr
         _session["target_project"] = target_project
 
-        bug_input = req.bug_description.strip()
+        bug_input = (req.bug_report or req.bug_description or "").strip()
         if not bug_input:
             bug_input = 'count_pending returns 1 instead of 2. It should count tasks that are NOT marked as completed with "[x]".'
 
@@ -202,6 +222,8 @@ async def start_session(req: StartRequest):
         })
         explorer = ExplorerAgent(config)
         project_ctx = explorer.explore(target_project, relevant_files_hint=request_ctx.relevant_files)
+        if not project_ctx.source_files and not project_ctx.test_files:
+            raise RepositoryError("Repository contains no supported source or test files.")
         state_mgr.set_project_context(project_ctx)
         _session["explorer"] = explorer
         _session["project_ctx"] = project_ctx
@@ -378,7 +400,23 @@ async def start_session(req: StartRequest):
             "validation_state": state_mgr.validation_state.value,
         }
 
+    except RepositoryError as exc:
+        _reset_session()
+        return {
+            "success": False,
+            "error": "Unable to access the GitHub repository.",
+            "detail": str(exc),
+            "messages": [{
+                "agent": "System", "emoji": "⚠️", "animal": "",
+                "message": f"**Repository error:** {exc}",
+                "message_type": "error",
+            }],
+            "quest_steps": [],
+            "session_phase": "uninitialized",
+            "validation_state": "NONE",
+        }
     except HTTPException:
+        _reset_session()
         raise
     except Exception as e:
         _reset_session()
@@ -579,6 +617,9 @@ async def validate_test(req: TestRequest):
         state_mgr.record_test_result(test_result, passed=True)
         state_mgr.advance_step()
         state_mgr.complete_quest()
+        if _session.get("temp_repo"):
+            _session["temp_repo"].cleanup()
+            _session["temp_repo"] = None
 
         messages.append({
             "agent": "Master", "emoji": "👑", "animal": "🦁",
