@@ -43,6 +43,28 @@ def test_decoder_deterministic_extraction(config):
     assert any("TypeError" in err for err in ctx.error_messages)
 
 
+def test_missing_import_is_preserved_as_target(config):
+    report = """ImportError while importing test module 'test_todo.py'.
+    from todo import add_task, remove_task, count_pending
+    ImportError: cannot import name 'remove_task' from 'todo'"""
+    ctx = DecoderAgent(config).decode(report)
+    assert ctx.target_function == "remove_task"
+
+
+def test_solver_prioritizes_missing_import(config):
+    report = """ImportError while importing test module 'test_todo.py'.
+    ImportError: cannot import name 'remove_task' from 'todo'"""
+    request = DecoderAgent(config).decode(report)
+    project = ProjectContext(project_path=".", project_name="todo_demo")
+    plan = SolverAgent(config).create_plan(
+        project,
+        request,
+        {"test_todo.py": "from todo import remove_task", "todo.py": "def add_task(tasks, task): pass"},
+    )
+    assert "remove_task" in plan.hypothesis
+    assert "count_pending" not in plan.hypothesis
+
+
 def test_explorer_scan(config, tmp_path):
     (tmp_path / "app.py").write_text("def run():\n    return 42\n")
     agent = ExplorerAgent(config)

@@ -16,6 +16,12 @@ from debug2learn.config.settings import AppConfig
 logger = logging.getLogger(__name__)
 
 
+def is_gemini_quota_error(error: Exception) -> bool:
+    """Return whether Gemini rejected a request because its quota was exhausted."""
+    message = str(error).lower()
+    return "quota" in message or "resource_exhausted" in message or "429" in message
+
+
 class BaseAgent:
     """
     Base class for all AI agents.

@@ -332,6 +332,19 @@ async def start_session(req: StartRequest):
         # 6. 🦁 Master (Lion)
         master = MasterAgent(config)
         welcome_msg = master.generate_initial_guidance(request_ctx, plan)
+        if welcome_msg.startswith("Gemini is unavailable because its API quota has been reached"):
+            _reset_session()
+            return {
+                "success": False,
+                "messages": [{
+                    "agent": "System", "emoji": "⚠️", "animal": "",
+                    "message": welcome_msg,
+                    "message_type": "error",
+                }],
+                "quest_steps": [],
+                "session_phase": "uninitialized",
+                "validation_state": "NONE",
+            }
         state_mgr.add_message("master", welcome_msg, "initial_briefing")
         _session["master"] = master
 

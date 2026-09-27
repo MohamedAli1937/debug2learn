@@ -3,19 +3,27 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from debug2learn.agents.base import BaseAgent, is_gemini_quota_error
 from debug2learn.config.settings import AppConfig
 from debug2learn.core.models import DebuggingPlan, LearningResource, RequestContext
 
 logger = logging.getLogger(__name__)
 
 
-class LibrarianAgent:
+LIBRARIAN_PROMPT = """You are Turtle, the Librarian agent in a debugging tutor.
+Recommend concise, official or highly trusted learning resources that directly match the developer's actual bug.
+Return ONLY valid JSON in this shape:
+{"resources": [{"title": "...", "url": "https://...", "resource_type": "documentation|tutorial|reference", "relevance": "...", "concept": "..."}]}
+Return 2 to 4 resources. Prefer official Python documentation when the project is Python. Never invent URLs."""
+
+
+class LibrarianAgent(BaseAgent):
     """
     📚 Librarian — Recommends curated learning materials targeted to the diagnosed bug.
     """
 
     def __init__(self, config: AppConfig):
-        self.config = config
+        super().__init__(config, system_prompt=LIBRARIAN_PROMPT)
 
     def find_resources(
         self,
@@ -34,6 +42,34 @@ class LibrarianAgent:
             request_context.symptom,
             request_context.raw_input,
         ]).lower()
+
+        if self._model and self.config.gemini.api_key:
+            prompt = (
+                "Curate resources for this debugging session.\n"
+                f"Bug symptom: {request_context.symptom}\n"
+                f"Domain: {request_context.domain}\n"
+                f"Diagnosis: {plan.hypothesis if plan else 'not available'}\n"
+                f"Logic: {plan.relevant_logic if plan else 'not available'}"
+            )
+            try:
+                data = self._parse_json_response(self._send_sync(prompt))
+                generated = []
+                for item in data.get("resources", []):
+                    if not all(item.get(key) for key in ("title", "url", "relevance")):
+                        continue
+                    generated.append(LearningResource(
+                        title=item["title"],
+                        url=item["url"],
+                        resource_type=item.get("resource_type", "documentation"),
+                        relevance=item["relevance"],
+                        concept=item.get("concept", ""),
+                    ))
+                if generated:
+                    return generated
+            except Exception as e:
+                logger.warning("Librarian Gemini curation failed; using curated fallback: %s", e)
+                if is_gemini_quota_error(e):
+                    return []
 
         is_logic_or_filtering = any(
             k in concept_text

@@ -6,6 +6,7 @@ Provides centralized configuration for all agents and components.
 """
 
 import os
+import sys
 from pathlib import Path
 from dataclasses import dataclass, field
 from dotenv import load_dotenv
@@ -49,7 +50,7 @@ MAX_CONTEXT_TOKENS = 30_000
 class GeminiConfig:
     """Configuration for the Gemini API."""
     api_key: str = ""
-    model: str = "gemini-2.5-flash"
+    model: str = "gemini-3.8-flash"
     temperature: float = 0.3
     max_output_tokens: int = 8192
 
@@ -84,17 +85,18 @@ def load_config(project_path: Path | None = None) -> AppConfig:
         if env_file.exists():
             load_dotenv(env_file)
     
-    # Also try loading from Debug2Learn's own directory
-    own_env = Path(__file__).parent.parent.parent.parent / ".env"
-    if own_env.exists():
-        load_dotenv(own_env, override=False)
+    # Load project-level configuration and support a .env placed in the active venv.
+    package_root = Path(__file__).resolve().parents[2]
+    for env_file in (package_root / ".env", Path(sys.prefix) / ".env"):
+        if env_file.exists():
+            load_dotenv(env_file, override=False)
     
     # Load from environment
     load_dotenv(override=False)
 
     gemini_config = GeminiConfig(
         api_key=os.getenv("GEMINI_API_KEY", ""),
-        model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+        model=os.getenv("GEMINI_MODEL", "gemini-3.8-flash"),
         temperature=float(os.getenv("GEMINI_TEMPERATURE", "0.3")),
         max_output_tokens=int(os.getenv("GEMINI_MAX_OUTPUT_TOKENS", "8192")),
     )

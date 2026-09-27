@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from debug2learn.agents.base import BaseAgent
+from debug2learn.agents.base import BaseAgent, is_gemini_quota_error
 from debug2learn.config.settings import AppConfig
 from debug2learn.core.models import (
     DebuggingPlan,
@@ -67,6 +67,8 @@ Keep it under 4 sentences. Do NOT give away the fix."""
                 return self._send_sync(prompt)
             except Exception as e:
                 logger.error(f"Master initial guidance failed: {e}")
+                if is_gemini_quota_error(e):
+                    return "Gemini is unavailable because its API quota has been reached. No AI guidance was generated."
 
         # Tailored fallback
         loc_str = f" `{target}`" if target else " the implementation"
@@ -139,6 +141,8 @@ Rules:
                 content = self._send_sync(prompt).strip()
             except Exception as e:
                 logger.error(f"Master hint generation failed: {e}")
+                if is_gemini_quota_error(e):
+                    content = "Gemini is unavailable because its API quota has been reached. No AI hint was generated."
 
         if not content:
             is_todo_case = (
@@ -217,16 +221,39 @@ Answer their question Socratically:
                 return self._send_sync(prompt)
             except Exception as e:
                 logger.error(f"Master Q&A failed: {e}")
+                if is_gemini_quota_error(e):
+                    return "Gemini is unavailable because its API quota has been reached. No AI answer was generated."
 
-        # Contextual fallback
-        if "[x]" in question or "count_pending" in question:
+        # Contextual fallback when Gemini is unavailable or quota-limited.
+        question_lower = question.lower()
+        if any(token in question_lower for token in ("remove_task", "importerror", "pytest", "import")):
+            if "pytest" in question_lower or "importerror" in question_lower:
+                return (
+                    "👑 **Debug Master**: Pytest stops during collection because Python must import the test module "
+                    "before it can run any test. What name does `test_todo.py` request from `todo.py`, and which "
+                    "definition is missing?"
+                )
+            if "remove_task" in question_lower:
+                return (
+                    "👑 **Debug Master**: `remove_task` is part of the module interface expected by the test. "
+                    "Trace the test's inputs and expected list after removal: what should happen when the requested "
+                    "task is present, and how should the function communicate the updated list?"
+                )
+            return (
+                "👑 **Debug Master**: Imports connect the test module to the functions in `todo.py`. "
+                "Which imported name cannot be resolved, and what does that tell you about the source module's API?"
+            )
+
+        if "[x]" in question_lower or "count_pending" in question_lower:
             return (
                 "👑 **Debug Master**: That's a perceptive question! In Python, list comprehensions can filter elements "
                 "using an `if` clause. If you want to keep only items where a condition is *false*, how do you invert a boolean expression?"
             )
 
-        return (
-            f"👑 **Debug Master**: Great question regarding `{question}`. "
-            f"Consider what value that expression evaluates to for each element in your dataset. "
-            f"Does it match what you expected?"
-        )
+        fallback_questions = [
+            f"👑 **Debug Master**: For `{question}`, identify the smallest input that demonstrates the behavior. What value should the function produce before you inspect the implementation?",
+            f"👑 **Debug Master**: Relate `{question}` to the current debugging step. Which line, symbol, or test assertion would provide the strongest evidence?",
+            f"👑 **Debug Master**: A useful next move for `{question}` is to compare the expected and observed states. What changed between those two moments?",
+        ]
+        prior_questions = sum(1 for message in session_state.messages if message.role == "developer")
+        return fallback_questions[(prior_questions - 1) % len(fallback_questions)]

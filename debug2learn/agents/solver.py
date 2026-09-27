@@ -108,6 +108,14 @@ class SolverAgent(BaseAgent):
         if not root_cause_file and source_files:
             root_cause_file = list(source_files.keys())[0]
 
+        missing_import = self._missing_import_name(request_context.raw_input)
+        if not missing_import:
+            missing_import = self._find_missing_import(source_files, test_files)
+        if missing_import:
+            return self._create_missing_import_plan(
+                missing_import, root_cause_file, failure_loc, request_context, relevant_code,
+            )
+
         # Determine failure location if not set
         if not failure_loc and test_files:
             tf = list(test_files.keys())[0]
@@ -201,6 +209,82 @@ Known Failure Location: {failure_loc or 'Unknown'}
             root_cause_location=root_cause_loc,
             relevant_logic=relevant_logic,
             concept=concept,
+            steps=steps,
+            relevant_code_snippets=relevant_code,
+        )
+
+    def _missing_import_name(self, text: str) -> str:
+        match = re.search(r"cannot import name ['\"]([a-zA-Z_]\w*)['\"]", text, re.IGNORECASE)
+        return match.group(1) if match else ""
+
+    def _find_missing_import(
+        self,
+        source_files: dict[str, str],
+        test_files: dict[str, str],
+    ) -> str:
+        """Find a function imported by tests but absent from the source module."""
+        defined = {
+            name
+            for code in source_files.values()
+            for name in re.findall(r"^\s*def\s+([a-zA-Z_]\w*)\s*\(", code, re.MULTILINE)
+        }
+        for code in test_files.values():
+            for imported_names in re.findall(r"from\s+\w+\s+import\s+([^\n#]+)", code):
+                for name in imported_names.split(","):
+                    candidate = name.strip().split(" as ", 1)[0].strip()
+                    if re.match(r"^[a-zA-Z_]\w*$", candidate) and candidate not in defined:
+                        return candidate
+        return ""
+
+    def _create_missing_import_plan(
+        self,
+        missing_import: str,
+        root_cause_file: str,
+        failure_loc: str,
+        request_context: RequestContext,
+        relevant_code: dict[str, str],
+    ) -> DebuggingPlan:
+        source_has_symbol = any(
+            re.search(rf"^\s*def\s+{re.escape(missing_import)}\s*\(", code, re.MULTILINE)
+            for code in relevant_code.values()
+        )
+        hypothesis = (
+            f"The test module cannot be collected because it imports `{missing_import}`, "
+            "but that function is not defined in the source module."
+        )
+        steps = [
+            DebuggingStep(
+                step_number=1,
+                title="Trace the failed import",
+                description="Compare the names imported by the test with the functions defined in the source module.",
+                target_file=failure_loc.split("::")[0] if failure_loc else "test file",
+                target_symbol=missing_import,
+                concept="Python imports and pytest collection",
+                expected_observation=f"The test imports `{missing_import}`, but the source does not define it.",
+            ),
+            DebuggingStep(
+                step_number=2,
+                title="Restore the missing API",
+                description="Decide what behavior the missing function should provide, then rerun pytest.",
+                target_file=root_cause_file,
+                target_symbol=missing_import,
+                concept="Module interfaces and test collection",
+                expected_observation="Pytest can import the test module before running individual tests.",
+            ),
+        ]
+        root_location = f"{root_cause_file} -> {missing_import}()" if root_cause_file else missing_import
+        return DebuggingPlan(
+            hypothesis=hypothesis,
+            confidence=0.98 if not source_has_symbol else 0.8,
+            evidence=[
+                f"ImportError names missing symbol: {missing_import}",
+                f"Source inspected in: {root_cause_file or 'source files'}",
+            ],
+            bug_location=root_location,
+            failure_location=failure_loc,
+            root_cause_location=root_location,
+            relevant_logic=f"`{missing_import}` is imported by the test but is not defined in the source module.",
+            concept="Python imports and pytest collection",
             steps=steps,
             relevant_code_snippets=relevant_code,
         )

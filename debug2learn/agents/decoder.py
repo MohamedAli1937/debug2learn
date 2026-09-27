@@ -63,6 +63,9 @@ class DecoderAgent(BaseAgent):
         extracted_files = self._extract_files(raw_input)
         extracted_errors = self._extract_errors(raw_input)
         extracted_target_func = self._extract_target_function(raw_input)
+        missing_import = self._extract_missing_import(raw_input)
+        if missing_import and not extracted_target_func:
+            extracted_target_func = missing_import
         expected_val, actual_val = self._extract_expected_and_actual(raw_input)
         failure_loc = self._extract_failure_location(raw_input)
 
@@ -183,6 +186,11 @@ class DecoderAgent(BaseAgent):
             if cand not in ("def", "return", "if", "for", "while", "class", "FAILED", "Expected", "Actual"):
                 return cand
         return ""
+
+    def _extract_missing_import(self, text: str) -> str:
+        """Extract a symbol named by an import-collection failure."""
+        match = re.search(r"cannot import name ['\"]([a-zA-Z_]\w*)['\"]", text, re.IGNORECASE)
+        return match.group(1) if match else ""
 
     def _extract_expected_and_actual(self, text: str) -> tuple[str, str]:
         """Extract expected and actual values from text."""
