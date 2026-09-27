@@ -1,120 +1,122 @@
-# 🎮 Debug2Learn — AI Debugging Tutor (MVP)
+# Debug2Learn
 
-> **Debug2Learn does not replace the developer's thinking. It strengthens it.**
+Debug2Learn is an AI-assisted debugging tutor. It helps developers understand a failure, inspect evidence, form a hypothesis, and validate their own fix instead of silently generating code for them.
 
-An AI-powered debugging tutor and quest that teaches software developers and students how to find and fix bugs instead of giving away automated answers. Built with **Google Gemini**.
+The project combines a FastAPI web application, a command-line quest, deterministic code analysis, and Gemini-powered teaching agents.
 
----
+## What It Does
 
-## 🎯 Philosophy
+Debug2Learn turns a bug report or test traceback into a guided debugging session:
 
-Traditional AI assistants work like this:
-```text
-Developer has a bug ──▶ AI generates fix ──▶ Developer copies code (no learning)
-```
+1. Decode the report and preserve important code tokens.
+2. Explore the target project and connect tests to source files.
+3. Diagnose the likely root cause and build a learning plan.
+4. Recommend focused documentation.
+5. Track changes made by the developer.
+6. Guide investigation with progressive Socratic questions.
+7. Validate the developer's test output.
 
-**Debug2Learn** works like this:
-```text
-Developer has a bug ──▶ AI analyzes relevant files ──▶ AI constructs debugging quest
-                   ──▶ AI guides with Socratic questions ──▶ Developer thinks & edits code
-                   ──▶ AI detects developer changes ──▶ AI evaluates progress
-                   ──▶ AI provides progressive hints ──▶ Developer masters the concept!
-```
+The system distinguishes a failure location, such as a test, from the implementation that caused the failure.
 
----
+## Agent Team
 
-## 👥 The 6 AI Game Companions
+| Agent | Responsibility |
+| --- | --- |
+| Explorer | Maps files, functions, tests, and source relationships |
+| Decoder | Extracts symptoms, tracebacks, symbols, and relevant files |
+| Solver | Identifies root causes and creates a teaching plan |
+| Librarian | Curates resources related to the actual debugging concept |
+| Tracker | Snapshots files and evaluates developer changes |
+| Master | Provides Socratic guidance, questions, and progressive hints |
 
-| Companion | Badge | Role |
-| :--- | :---: | :--- |
-| **Explorer** | 🧭 | Scans & explores relevant project files, functions, and architecture |
-| **Decoder** | 🔐 | Deconstructs bug reports, error messages, and stack traces |
-| **Solver** | 🧩 | Diagnoses root cause & constructs a pedagogical debugging plan |
-| **Tracker** | 🎯 | Monitors developer modifications in relevant files and diffs |
-| **Librarian** | 📚 | Dispatches curated official documentation and learning resources |
-| **Master** | 👑 | Guides the developer with Socratic questions and progressive hints |
+## Requirements
 
----
+- Python 3.11 or newer
+- A Gemini API key for AI-generated analysis and conversation
+- `pip` and a virtual environment
 
-## 💡 Simple Progressive Hint System
+## Installation
 
-Instead of overwhelming the developer or spoiling the answer, the 👑 **Master** delivers hints in 3 progressive stages:
-
-1. **Level 1 (Nudge)**: Conceptual question challenging baseline assumptions.
-2. **Level 2 (Clue)**: Directional guidance pointing at suspect variables or control flow.
-3. **Level 3 (Direct Clue)**: Explicit mechanism clue without writing the fix.
-
----
-
-## 🚀 Quick Start
-
-### 1. Installation
-
-```bash
-# Clone or navigate to the repository
+```powershell
 cd Debug2Learn
-
-# Install dependencies
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-
-# Configure your Gemini API Key
-cp .env.example .env
-# Open .env and add: GEMINI_API_KEY=your_key_here
 ```
 
-### 2. Start the Interactive Debugging Quest
+Create a `.env` file in the repository root:
 
-```bash
-python main.py
+```env
+GEMINI_API_KEY=your_api_key_here
+GEMINI_MODEL=gemini-3.8-flash
 ```
 
-### 3. Interactive Commands
+Never commit `.env` or expose the API key in browser code.
 
-During the debugging session, you can interact with your companions:
+## Run the Web App
 
-- `hint` (or `h`): Ask 👑 **Master** for the next progressive hint
-- `check` (or `c`): Have 🎯 **Tracker** inspect your edits and 👑 **Master** evaluate your progress
-- `plan` (or `p`): Review the 🧩 **Solver**'s quest steps
-- `resources` (or `r`): Read 📚 **Librarian**'s curated guides and documentation links
-- `ask <question>`: Chat directly with 👑 **Master** using Socratic dialogue
-- `quit` (or `q`): Complete the quest
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn server:app --host 127.0.0.1 --port 8000
+```
 
----
+Open <http://127.0.0.1:8000>.
 
-## 🏗️ Project Architecture
+Enter the absolute path to a project, describe the failure, and use the Master chat to investigate it. The backend must remain running while using the web interface.
+
+## Run the CLI
+
+```powershell
+.\.venv\Scripts\python.exe main.py
+```
+
+The CLI supports `hint`, `check`, `plan`, `resources`, `ask <question>`, and `quit`.
+
+## Test the Project
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q
+```
+
+The test suite covers the agents, analyzers, state models, tracker behavior, and the todo debugging workflow.
+
+## Gemini and Quota Behavior
+
+Gemini is used by the Decoder, Solver, Librarian, and Master when the SDK and API key are available. The default model is `gemini-3.8-flash`; set `GEMINI_MODEL` to use another model supported by your account.
+
+When Gemini returns a quota or rate-limit error, Debug2Learn does not invent an AI response. The web session stops at startup with an explicit quota message. The local deterministic analyzers remain useful for tests and development, but they are not presented as Gemini-generated answers.
+
+If the API reports a `429` quota error, wait for the quota window to reset or review the billing and rate-limit settings for the Gemini project.
+
+## GitHub Pages Demo
+
+The static interface is published at:
+
+<https://mohamedali1937.github.io/debug2learn/>
+
+GitHub Pages cannot run the FastAPI backend or safely hold a Gemini API key. The published page therefore provides a client-side demonstration. For real Gemini-powered debugging, run the local FastAPI server and use <http://127.0.0.1:8000>.
+
+## Repository Layout
 
 ```text
 Debug2Learn/
-├── main.py                     # Interactive CLI runner
-├── requirements.txt            # Minimal pip dependencies
-├── .env.example                # Environment template
+├── server.py                  # FastAPI web server
+├── main.py                    # Interactive CLI
+├── frontend/index.html        # Web interface
 ├── debug2learn/
-│   ├── agents/                 # The 6 Game Companions
-│   │   ├── explorer.py         # 🧭 Explorer
-│   │   ├── decoder.py          # 🔐 Decoder
-│   │   ├── solver.py           # 🧩 Solver
-│   │   ├── tracker.py          # 🎯 Tracker
-│   │   ├── librarian.py        # 📚 Librarian
-│   │   ├── master.py           # 👑 Master
-│   │   └── base.py             # Shared Gemini LLM infrastructure
-│   ├── analyzers/              # Deterministic code analyzers
-│   │   ├── ast_analyzer.py     # AST function, class, and symbol comparison
-│   │   ├── file_scanner.py     # Fast directory scanner & filtering
-│   │   └── git_analyzer.py     # Git diff & status tracker
-│   ├── core/
-│   │   ├── models.py           # Lean Pydantic data models
-│   │   └── state.py            # Fast in-memory state manager
-│   ├── config/
-│   │   └── settings.py         # App & Gemini configurations
-│   └── utils/
-│       └── display.py          # Rich terminal formatting & badges
-└── tests/                      # Pytest unit tests (43 passing)
+│   ├── agents/                # Explorer, Decoder, Solver, Librarian, Tracker, Master
+│   ├── analyzers/             # AST, file, and Git analysis
+│   ├── config/                # Environment and application settings
+│   ├── core/                  # Pydantic models and session state
+│   └── utils/                 # Terminal presentation helpers
+├── tests/                     # Automated tests
+├── requirements.txt
+└── .env.example
 ```
 
----
+## Design Principles
 
-## 🧪 Running Tests
-
-```bash
-pytest
-```
+- Teach the reasoning process rather than conceal it.
+- Ground diagnoses in the actual project files and test output.
+- Keep deterministic analysis separate from model-generated interpretation.
+- Never expose secrets in the frontend.
+- Report unavailable AI services honestly instead of fabricating answers.
