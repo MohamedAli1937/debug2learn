@@ -2209,9 +2209,10 @@
    DEBUG2LEARN — Frontend Logic
    ═══════════════════════════════════════════════════════ */
 
-      const API_BASE =
-        window.location.protocol.startsWith("http") && window.location.port === "8000" ? "" : "http://127.0.0.1:8000";
-      const DEMO_MODE = window.location.hostname.endsWith("github.io");
+      const configuredApi = new URLSearchParams(window.location.search).get("api");
+      const API_BASE = configuredApi ||
+        (window.location.protocol.startsWith("http") && window.location.port === "8000" ? "" : "http://127.0.0.1:8000");
+      const DEMO_MODE = window.location.hostname.endsWith("github.io") && !configuredApi;
 
       const AGENT_IMAGES = {
         Decoder: "assets/panda.svg",
@@ -2589,6 +2590,19 @@
 
       function demoApiCall(endpoint, body) {
         if (endpoint === "/api/start") {
+          return {
+            success: false,
+            messages: [
+              {
+                agent: "System",
+                message:
+                  "This GitHub Pages deployment is a static demo. Due to the hackathon's limited development time, it cannot connect to Gemini or inspect your local project. No AI diagnosis was generated. Run the FastAPI server locally at [http://127.0.0.1:8000](http://127.0.0.1:8000) for the live Gemini-powered experience.",
+                message_type: "error",
+              },
+            ],
+            quest_steps: [],
+          };
+          /* Sample data below is retained for local development previews. */
           demoState.active = true;
           demoState.hints = 0;
           demoState.questions = 0;
