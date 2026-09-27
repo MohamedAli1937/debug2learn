@@ -332,7 +332,7 @@ async def start_session(req: StartRequest):
         # 6. 🦁 Master (Lion)
         master = MasterAgent(config)
         welcome_msg = master.generate_initial_guidance(request_ctx, plan)
-        if welcome_msg.startswith("Gemini is unavailable because its API quota has been reached"):
+        if welcome_msg.startswith("Groq is unavailable because its API quota has been reached"):
             _reset_session()
             return {
                 "success": False,
