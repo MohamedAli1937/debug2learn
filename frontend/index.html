@@ -2183,6 +2183,17 @@
       </main>
     </div>
 
+    <aside class="questlog-drawer" id="questlog-drawer" aria-label="Quest log">
+      <h3>
+        Quest Log
+        <button class="questlog-close" type="button" onclick="toggleQuestLog(false)" aria-label="Close quest log">×</button>
+      </h3>
+      <div class="quest-steps" id="quest-steps">
+        <div class="quest-step" style="color:var(--text-dim); font-style:italic; font-size:12px;">Start a quest to see steps…</div>
+      </div>
+    </aside>
+    <div class="drawer-backdrop" id="drawer-backdrop" onclick="toggleQuestLog(false)"></div>
+
     <!-- Loading indicator -->
     <div class="typing-pill" id="typing-indicator">
       <div class="typing-dots"><span></span><span></span><span></span></div>
