@@ -5,153 +5,391 @@ from typing import Any
 
 from debug2learn.agents.base import BaseAgent, is_groq_quota_error
 from debug2learn.config.settings import AppConfig
-from debug2learn.core.models import DebuggingPlan, LearningResource, RequestContext
+from debug2learn.core.models import (
+    DebuggingPlan,
+    LearningResource,
+    RequestContext,
+)
 
 logger = logging.getLogger(__name__)
 
 
-LIBRARIAN_PROMPT = """You are Turtle, the Librarian agent in a debugging tutor.
-Recommend concise, official or highly trusted learning resources that directly match the developer's actual bug.
-Return ONLY valid JSON in this shape:
-{"resources": [{"title": "...", "url": "https://...", "resource_type": "documentation|tutorial|reference", "relevance": "...", "concept": "..."}]}
-Return 2 to 4 resources. Prefer official Python documentation when the project is Python. Never invent URLs."""
+LIBRARIAN_PROMPT = """You are Turtle, the Librarian agent in Debug2Learn.
+
+Your job is to recommend learning resources that directly help the developer
+understand the ACTUAL bug diagnosed by the Solver.
+
+IMPORTANT:
+
+1. Use the Solver's diagnosis as the primary source of truth.
+2. Do NOT assume a specific bug pattern.
+3. Do NOT recommend resources merely because a keyword appears in the bug report.
+4. Resources must explain concepts directly relevant to the diagnosed root cause.
+5. Prefer official documentation and highly trusted technical sources.
+6. Prefer Python official documentation when the project is Python.
+7. Never invent URLs.
+8. Do not recommend generic resources when a specific resource is available.
+9. Do not recommend resources for an unrelated possible bug.
+10. Return only valid JSON.
+
+Return exactly this structure:
+
+{
+  "resources": [
+    {
+      "title": "...",
+      "url": "https://...",
+      "resource_type": "documentation|tutorial|reference",
+      "relevance": "...",
+      "concept": "..."
+    }
+  ]
+}
+
+Return 2 to 4 resources.
+"""
 
 
 class LibrarianAgent(BaseAgent):
     """
-    📚 Librarian — Recommends curated learning materials targeted to the diagnosed bug.
+    Turtle / Librarian.
+
+    Recommends learning resources based on the Solver's diagnosis
+    rather than hardcoded bug categories.
     """
 
     def __init__(self, config: AppConfig):
-        super().__init__(config, system_prompt=LIBRARIAN_PROMPT)
+        super().__init__(
+            config,
+            system_prompt=LIBRARIAN_PROMPT,
+        )
 
     def find_resources(
         self,
         request_context: RequestContext,
         plan: DebuggingPlan | None = None,
     ) -> list[LearningResource]:
-        """Find relevant documentation and tutorials based on the diagnosed issue."""
-        resources: list[LearningResource] = []
-        
-        # Combine concept signals from plan and request
-        concept_text = " ".join([
-            plan.concept if plan else "",
-            plan.hypothesis if plan else "",
-            plan.relevant_logic if plan else "",
-            request_context.domain,
-            request_context.symptom,
-            request_context.raw_input,
-        ]).lower()
+        """
+        Find learning resources specifically related to the diagnosed bug.
+        """
+
+        if not plan:
+            logger.warning(
+                "Librarian called without a debugging plan."
+            )
+            return self._generic_fallback(request_context)
+
+        root_cause = (
+            plan.root_cause_location
+            or plan.bug_location
+            or "unknown"
+        )
+
+        hypothesis = plan.hypothesis or ""
+        relevant_logic = plan.relevant_logic or ""
+        concept = plan.concept or ""
+
+        steps_text = self._format_steps(plan)
+
+        prompt = f"""
+Find learning resources for the current debugging problem.
+
+PROJECT DOMAIN:
+{request_context.domain}
+
+BUG SYMPTOM:
+{request_context.symptom}
+
+RAW BUG REPORT:
+{request_context.raw_input}
+
+ERROR MESSAGES:
+{self._format_errors(request_context)}
+
+SOLVER DIAGNOSIS
+================
+
+Root Cause Location:
+{root_cause}
+
+Hypothesis:
+{hypothesis}
+
+Relevant Logic:
+{relevant_logic}
+
+Concept:
+{concept}
+
+Debugging Steps:
+{steps_text}
+
+Your task:
+
+1. Identify the exact programming concept the developer needs to understand
+   to diagnose or fix THIS bug.
+
+2. Recommend 2 to 4 resources that teach that concept.
+
+3. The resources must directly relate to the Solver diagnosis.
+
+4. Prefer official documentation.
+
+5. For Python projects, prefer:
+   - docs.python.org
+   - pytest documentation when pytest is directly involved
+   - other highly trusted primary documentation when appropriate.
+
+6. Do NOT recommend resources about unrelated concepts.
+
+7. Do NOT infer a different bug from keywords.
+
+8. Do NOT recommend list comprehensions, boolean operators, string methods,
+   async programming, dictionaries, or exception handling unless the Solver
+   diagnosis actually requires those concepts.
+
+9. Every URL must be a real URL that you are confident exists.
+
+10. Explain briefly why each resource is relevant to THIS diagnosis.
+
+Return only valid JSON.
+"""
 
         if self._model and self.config.groq.api_key:
-            prompt = (
-                "Curate resources for this debugging session.\n"
-                f"Bug symptom: {request_context.symptom}\n"
-                f"Domain: {request_context.domain}\n"
-                f"Diagnosis: {plan.hypothesis if plan else 'not available'}\n"
-                f"Logic: {plan.relevant_logic if plan else 'not available'}"
-            )
             try:
-                data = self._parse_json_response(self._send_sync(prompt))
-                generated = []
-                for item in data.get("resources", []):
-                    if not all(item.get(key) for key in ("title", "url", "relevance")):
-                        continue
-                    generated.append(LearningResource(
-                        title=item["title"],
-                        url=item["url"],
-                        resource_type=item.get("resource_type", "documentation"),
-                        relevance=item["relevance"],
-                        concept=item.get("concept", ""),
-                    ))
+                response = self._send_sync(prompt)
+
+                data = self._parse_json_response(response)
+
+                generated = self._parse_resources(data)
+
                 if generated:
-                    return generated
+                    return generated[:4]
+
             except Exception as e:
-                logger.warning("Librarian Groq curation failed; using curated fallback: %s", e)
+                logger.warning(
+                    "Librarian Groq curation failed; using diagnosis fallback: %s",
+                    e,
+                )
+
                 if is_groq_quota_error(e):
-                    return []
+                    logger.warning(
+                        "Groq quota reached during Librarian curation."
+                    )
 
-        is_logic_or_filtering = any(
-            k in concept_text
-            for k in ("filter", "comprehension", "boolean", "condition", "[x]", "count", "pending", "not ")
+        return self._diagnosis_fallback(
+            request_context=request_context,
+            plan=plan,
         )
-        is_type_issue = any(k in concept_text for k in ("typeerror", "type", "concatenate", "operand"))
-        is_dict_or_index = any(k in concept_text for k in ("keyerror", "indexerror", "out of range", "mapping"))
-        is_async_issue = any(k in concept_text for k in ("async", "await", "coroutine", "event loop"))
 
-        # 1. Logic / Filtering / List Comprehension Resources
-        if is_logic_or_filtering:
-            resources.append(LearningResource(
-                title="Python Tutorial: List Comprehensions with Conditional Filtering",
-                url="https://docs.python.org/3/tutorial/datastructures.html#list-comprehensions",
-                resource_type="documentation",
-                relevance="Explains how to use the 'if' clause to selectively filter items in a list comprehension",
-                concept="List Comprehensions & Filtering",
-            ))
-            resources.append(LearningResource(
-                title="Python Standard Library: Boolean Operations (`not`, `and`, `or`)",
-                url="https://docs.python.org/3/library/stdtypes.html#boolean-operations-and-or-not",
-                resource_type="documentation",
-                relevance="How to use the 'not' operator to invert a condition and filter out matching items",
-                concept="Boolean Negation (`not`)",
-            ))
-            if "startswith" in concept_text or "[x]" in concept_text:
-                resources.append(LearningResource(
-                    title="Python String Methods: str.startswith()",
-                    url="https://docs.python.org/3/library/stdtypes.html#str.startswith",
-                    resource_type="documentation",
-                    relevance="Checking prefixes and using negation to identify items without the prefix",
-                    concept="String Pattern Matching",
-                ))
+    def _parse_resources(
+        self,
+        data: Any,
+    ) -> list[LearningResource]:
+        """
+        Validate resources returned by the LLM.
+        """
 
-        # 2. Type System Resources
-        if is_type_issue:
-            resources.append(LearningResource(
-                title="Python Type Hierarchy & Common TypeErrors",
-                url="https://docs.python.org/3/library/stdtypes.html",
-                resource_type="documentation",
-                relevance="Explains how Python evaluates operations across different types",
-                concept="Type Systems",
-            ))
+        if not isinstance(data, dict):
+            return []
 
-        # 3. Data Structure Access Resources
-        if is_dict_or_index:
-            resources.append(LearningResource(
-                title="Python dict.get() & Safe Sequence Indexing",
-                url="https://docs.python.org/3/tutorial/datastructures.html#dictionaries",
-                resource_type="documentation",
-                relevance="Preventing KeyError and IndexError when accessing dynamic collections",
-                concept="Data Structure Safety",
-            ))
+        raw_resources = data.get("resources", [])
 
-        # 4. Async Resources
-        if is_async_issue:
-            resources.append(LearningResource(
-                title="Python Async/Await Primer",
-                url="https://docs.python.org/3/library/asyncio-task.html",
-                resource_type="tutorial",
-                relevance="Explains coroutine execution and common await omissions",
-                concept="Asynchronous Execution",
-            ))
+        if not isinstance(raw_resources, list):
+            return []
 
-        # 5. ONLY add generic exception tutorial if there is a real unhandled exception and not just a logic error
-        if request_context.error_messages and not is_logic_or_filtering:
-            resources.append(LearningResource(
-                title="Python Tutorial: Errors and Exceptions",
-                url="https://docs.python.org/3/tutorial/errors.html",
-                resource_type="tutorial",
-                relevance="How Python traces runtime errors and proper exception handling techniques",
-                concept="Exception Handling",
-            ))
+        resources: list[LearningResource] = []
 
-        # If nothing matched, provide general Python documentation
-        if not resources:
-            resources.append(LearningResource(
-                title="Official Python Tutorial: Control Flow and Expressions",
-                url="https://docs.python.org/3/tutorial/controlflow.html",
-                resource_type="tutorial",
-                relevance="Covers if statements, conditional expressions, and looping patterns",
-                concept="Control Flow",
-            ))
+        for item in raw_resources:
+            if not isinstance(item, dict):
+                continue
+
+            title = str(item.get("title", "")).strip()
+            url = str(item.get("url", "")).strip()
+            relevance = str(item.get("relevance", "")).strip()
+
+            if not title or not url or not relevance:
+                continue
+
+            if not url.startswith(("https://", "http://")):
+                continue
+
+            resource_type = str(
+                item.get("resource_type", "documentation")
+            ).strip()
+
+            if resource_type not in (
+                "documentation",
+                "tutorial",
+                "reference",
+            ):
+                resource_type = "documentation"
+
+            concept = str(
+                item.get("concept", "")
+            ).strip()
+
+            resources.append(
+                LearningResource(
+                    title=title,
+                    url=url,
+                    resource_type=resource_type,
+                    relevance=relevance,
+                    concept=concept,
+                )
+            )
 
         return resources
+
+    def _format_steps(
+        self,
+        plan: DebuggingPlan,
+    ) -> str:
+        """
+        Convert debugging steps into concise context for Turtle.
+        """
+
+        if not plan.steps:
+            return "No explicit debugging steps available."
+
+        lines: list[str] = []
+
+        for step in plan.steps[:6]:
+            lines.append(
+                f"- Step {step.step_number}: {step.title}\n"
+                f"  Description: {step.description}\n"
+                f"  File: {step.target_file}\n"
+                f"  Symbol: {step.target_symbol}"
+            )
+
+        return "\n".join(lines)
+
+    def _format_errors(
+        self,
+        request_context: RequestContext,
+    ) -> str:
+        """
+        Format observed errors without inventing additional information.
+        """
+
+        errors = request_context.error_messages
+
+        if not errors:
+            return "No explicit error messages provided."
+
+        if isinstance(errors, (list, tuple)):
+            return "\n".join(
+                f"- {str(error)}"
+                for error in errors[:10]
+            )
+
+        return str(errors)
+
+    def _diagnosis_fallback(
+        self,
+        request_context: RequestContext,
+        plan: DebuggingPlan,
+    ) -> list[LearningResource]:
+        """
+        Diagnosis-driven fallback used when Groq is unavailable.
+
+        This intentionally does NOT contain hardcoded bug-specific
+        keyword detection.
+        """
+
+        concept = (
+            plan.concept
+            or plan.hypothesis
+            or "debugging and program behavior"
+        )
+
+        domain = (
+            request_context.domain
+            or ""
+        ).lower()
+
+        resources: list[LearningResource] = []
+
+        if "python" in domain:
+            resources.append(
+                LearningResource(
+                    title="Python Tutorial",
+                    url="https://docs.python.org/3/tutorial/",
+                    resource_type="tutorial",
+                    relevance=(
+                        f"Provides official Python documentation for "
+                        f"understanding the concepts involved in: {concept}"
+                    ),
+                    concept=concept,
+                )
+            )
+
+        elif "pytest" in domain:
+            resources.append(
+                LearningResource(
+                    title="pytest Documentation",
+                    url="https://docs.pytest.org/en/stable/",
+                    resource_type="documentation",
+                    relevance=(
+                        f"Official pytest documentation relevant to "
+                        f"understanding the diagnosed issue: {concept}"
+                    ),
+                    concept=concept,
+                )
+            )
+
+        if not resources:
+            resources.append(
+                LearningResource(
+                    title="Python Tutorial",
+                    url="https://docs.python.org/3/tutorial/",
+                    resource_type="tutorial",
+                    relevance=(
+                        f"Official Python documentation for the concepts "
+                        f"identified by the Solver: {concept}"
+                    ),
+                    concept=concept,
+                )
+            )
+
+        return resources[:4]
+
+    def _generic_fallback(
+        self,
+        request_context: RequestContext,
+    ) -> list[LearningResource]:
+        """
+        Minimal fallback when no Solver diagnosis exists.
+        """
+
+        domain = (
+            request_context.domain
+            or ""
+        ).lower()
+
+        if "python" in domain:
+            return [
+                LearningResource(
+                    title="Python Tutorial",
+                    url="https://docs.python.org/3/tutorial/",
+                    resource_type="tutorial",
+                    relevance=(
+                        "Official Python documentation for learning "
+                        "the language and debugging-related concepts."
+                    ),
+                    concept="Python",
+                )
+            ]
+
+        return [
+            LearningResource(
+                title="Python Tutorial",
+                url="https://docs.python.org/3/tutorial/",
+                resource_type="tutorial",
+                relevance=(
+                    "Official Python documentation for understanding "
+                    "Python programming concepts."
+                ),
+                concept="Python",
+            )
+        ]
