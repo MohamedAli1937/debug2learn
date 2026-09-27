@@ -176,7 +176,7 @@ class ExplorerAgent(BaseAgent):
         )
 
         # Enhance with AI overview if model available
-        if self._model and self.config.gemini.api_key:
+        if self._model and self.config.groq.api_key:
             try:
                 summary_prompt = self._build_prompt(
                     project_name=project_path.name,

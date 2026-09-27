@@ -89,7 +89,7 @@ class DecoderAgent(BaseAgent):
         domain = self._detect_domain(raw_input)
 
         # If LLM available, enrich semantic understanding
-        if self._model and self.config.gemini.api_key:
+        if self._model and self.config.groq.api_key:
             try:
                 prompt_parts = {
                     "developer_bug_report": raw_input,

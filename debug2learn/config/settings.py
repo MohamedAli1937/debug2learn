@@ -47,10 +47,10 @@ MAX_CONTEXT_TOKENS = 30_000
 
 
 @dataclass
-class GeminiConfig:
-    """Configuration for the Gemini API."""
+class GroqConfig:
+    """Configuration for the Groq API."""
     api_key: str = ""
-    model: str = "gemini-3.8-flash"
+    model: str = "llama-3.3-70b-versatile"
     temperature: float = 0.3
     max_output_tokens: int = 8192
 
@@ -58,7 +58,7 @@ class GeminiConfig:
 @dataclass
 class AppConfig:
     """Main application configuration."""
-    gemini: GeminiConfig = field(default_factory=GeminiConfig)
+    groq: GroqConfig = field(default_factory=GroqConfig)
     log_level: str = "INFO"
     project_path: Path = field(default_factory=lambda: Path.cwd())
     session_dir: str = SESSION_DIR
@@ -94,15 +94,15 @@ def load_config(project_path: Path | None = None) -> AppConfig:
     # Load from environment
     load_dotenv(override=False)
 
-    gemini_config = GeminiConfig(
-        api_key=os.getenv("GEMINI_API_KEY", ""),
-        model=os.getenv("GEMINI_MODEL", "gemini-3.8-flash"),
-        temperature=float(os.getenv("GEMINI_TEMPERATURE", "0.3")),
-        max_output_tokens=int(os.getenv("GEMINI_MAX_OUTPUT_TOKENS", "8192")),
+    groq_config = GroqConfig(
+        api_key=os.getenv("GROQ_API_KEY", ""),
+        model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
+        temperature=float(os.getenv("GROQ_TEMPERATURE", "0.3")),
+        max_output_tokens=int(os.getenv("GROQ_MAX_OUTPUT_TOKENS", "8192")),
     )
 
     config = AppConfig(
-        gemini=gemini_config,
+        groq=groq_config,
         log_level=os.getenv("LOG_LEVEL", "INFO"),
         project_path=project_path or Path.cwd(),
     )
@@ -114,9 +114,9 @@ def validate_config(config: AppConfig) -> list[str]:
     """Validate configuration and return list of errors."""
     errors = []
     
-    if not config.gemini.api_key:
+    if not config.groq.api_key:
         errors.append(
-            "GEMINI_API_KEY is not set. "
+            "GROQ_API_KEY is not set. "
             "Set it in your .env file or as an environment variable."
         )
     

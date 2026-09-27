@@ -151,7 +151,7 @@ Known Failure Location: {failure_loc or 'Unknown'}
 3. Formulate a hypothesis analyzing the actual code logic.
 4. Construct a 2-3 step pedagogical plan teaching the concept without giving away the direct code fix."""
 
-        if self._model and self.config.gemini.api_key:
+        if self._model and self.config.groq.api_key:
             try:
                 response = self._send_sync(prompt)
                 data = self._parse_json_response(response)
@@ -498,7 +498,7 @@ Respond with JSON:
     "feedback": "Encouraging pedagogical guidance"
 }}"""
 
-        if self._model and self.config.gemini.api_key:
+        if self._model and self.config.groq.api_key:
             try:
                 res = self._send_sync(prompt)
                 data = self._parse_json_response(res)

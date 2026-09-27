@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from debug2learn.agents.base import BaseAgent, is_gemini_quota_error
+from debug2learn.agents.base import BaseAgent, is_groq_quota_error
 from debug2learn.config.settings import AppConfig
 from debug2learn.core.models import (
     DebuggingPlan,
@@ -62,13 +62,13 @@ Instructions:
 3. Ask an engaging Socratic question based on Step 1 to kick off their investigation.
 Keep it under 4 sentences. Do NOT give away the fix."""
 
-        if self._model and self.config.gemini.api_key:
+        if self._model and self.config.groq.api_key:
             try:
                 return self._send_sync(prompt)
             except Exception as e:
                 logger.error(f"Master initial guidance failed: {e}")
-                if is_gemini_quota_error(e):
-                    return "Gemini is unavailable because its API quota has been reached. No AI guidance was generated."
+                if is_groq_quota_error(e):
+                    return "Groq is unavailable because its API quota has been reached. No AI guidance was generated."
 
         # Tailored fallback
         loc_str = f" `{target}`" if target else " the implementation"
@@ -136,13 +136,13 @@ Rules:
 - Lead the developer to realize the answer themselves."""
 
         content = ""
-        if self._model and self.config.gemini.api_key:
+        if self._model and self.config.groq.api_key:
             try:
                 content = self._send_sync(prompt).strip()
             except Exception as e:
                 logger.error(f"Master hint generation failed: {e}")
-                if is_gemini_quota_error(e):
-                    content = "Gemini is unavailable because its API quota has been reached. No AI hint was generated."
+                if is_groq_quota_error(e):
+                    content = "Groq is unavailable because its API quota has been reached. No AI hint was generated."
 
         if not content:
             is_todo_case = (
@@ -216,15 +216,15 @@ Answer their question Socratically:
 - NEVER write out the fix.
 - End with a guiding question."""
 
-        if self._model and self.config.gemini.api_key:
+        if self._model and self.config.groq.api_key:
             try:
                 return self._send_sync(prompt)
             except Exception as e:
                 logger.error(f"Master Q&A failed: {e}")
-                if is_gemini_quota_error(e):
-                    return "Gemini is unavailable because its API quota has been reached. No AI answer was generated."
+                if is_groq_quota_error(e):
+                    return "Groq is unavailable because its API quota has been reached. No AI answer was generated."
 
-        # Contextual fallback when Gemini is unavailable or quota-limited.
+        # Contextual fallback when Groq is unavailable or quota-limited.
         question_lower = question.lower()
         if any(token in question_lower for token in ("remove_task", "importerror", "pytest", "import")):
             if "pytest" in question_lower or "importerror" in question_lower:

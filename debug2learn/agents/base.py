@@ -5,19 +5,20 @@ import logging
 from typing import Any
 
 try:
-    import google.generativeai as genai
-    GENAI_AVAILABLE = True
+    from groq import Groq, AsyncGroq
+    GROQ_AVAILABLE = True
 except ImportError:
-    genai = None  # type: ignore
-    GENAI_AVAILABLE = False
+    Groq = None  # type: ignore
+    AsyncGroq = None  # type: ignore
+    GROQ_AVAILABLE = False
 
 from debug2learn.config.settings import AppConfig
 
 logger = logging.getLogger(__name__)
 
 
-def is_gemini_quota_error(error: Exception) -> bool:
-    """Return whether Gemini rejected a request because its quota was exhausted."""
+def is_groq_quota_error(error: Exception) -> bool:
+    """Return whether Groq rejected a request because its quota or rate limit was exhausted."""
     message = str(error).lower()
     return "quota" in message or "resource_exhausted" in message or "429" in message
 
@@ -27,7 +28,7 @@ class BaseAgent:
     Base class for all AI agents.
     
     Provides:
-    - Gemini API client initialization
+    - Groq API client initialization
     - Common send/receive methods
     - JSON response parsing
     - Error handling
@@ -40,47 +41,54 @@ class BaseAgent:
         self._setup_client()
 
     def _setup_client(self):
-        """Initialize the Gemini API client if library and key are available."""
-        if not GENAI_AVAILABLE or not self.config.gemini.api_key:
+        """Initialize the Groq API client if the library and key are available."""
+        if not GROQ_AVAILABLE or not self.config.groq.api_key:
             self._model = None
             return
 
-        genai.configure(api_key=self.config.gemini.api_key)
-        
-        generation_config = genai.GenerationConfig(
-            temperature=self.config.gemini.temperature,
-            max_output_tokens=self.config.gemini.max_output_tokens,
-        )
-
-        self._model = genai.GenerativeModel(
-            model_name=self.config.gemini.model,
-            generation_config=generation_config,
-            system_instruction=self.system_prompt if self.system_prompt else None,
-        )
+        self._model = Groq(api_key=self.config.groq.api_key)
 
     async def _send(self, prompt: str) -> str:
-        """Send a prompt to Gemini and return the text response."""
+        """Send a prompt to Groq and return the text response."""
         if self._model is None:
-            raise RuntimeError("Gemini model not initialized")
+            raise RuntimeError("Groq model not initialized")
         
         try:
-            response = await self._model.generate_content_async(prompt)
-            return response.text or ""
+            client = AsyncGroq(api_key=self.config.groq.api_key)
+            response = await client.chat.completions.create(
+                model=self.config.groq.model,
+                messages=self._messages(prompt),
+                temperature=self.config.groq.temperature,
+                max_tokens=self.config.groq.max_output_tokens,
+            )
+            return response.choices[0].message.content or ""
         except Exception as e:
-            logger.error(f"Gemini API error: {e}")
+            logger.error(f"Groq API error: {e}")
             raise
 
     def _send_sync(self, prompt: str) -> str:
         """Synchronous version of _send for simpler CLI usage."""
         if self._model is None:
-            raise RuntimeError("Gemini model not initialized")
+            raise RuntimeError("Groq model not initialized")
         
         try:
-            response = self._model.generate_content(prompt)
-            return response.text or ""
+            response = self._model.chat.completions.create(
+                model=self.config.groq.model,
+                messages=self._messages(prompt),
+                temperature=self.config.groq.temperature,
+                max_tokens=self.config.groq.max_output_tokens,
+            )
+            return response.choices[0].message.content or ""
         except Exception as e:
-            logger.error(f"Gemini API error: {e}")
+            logger.error(f"Groq API error: {e}")
             raise
+
+    def _messages(self, prompt: str) -> list[dict[str, str]]:
+        messages = []
+        if self.system_prompt:
+            messages.append({"role": "system", "content": self.system_prompt})
+        messages.append({"role": "user", "content": prompt})
+        return messages
 
     def _parse_json_response(self, response: str) -> dict[str, Any]:
         """

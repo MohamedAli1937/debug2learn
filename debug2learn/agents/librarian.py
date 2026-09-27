@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from debug2learn.agents.base import BaseAgent, is_gemini_quota_error
+from debug2learn.agents.base import BaseAgent, is_groq_quota_error
 from debug2learn.config.settings import AppConfig
 from debug2learn.core.models import DebuggingPlan, LearningResource, RequestContext
 
@@ -43,7 +43,7 @@ class LibrarianAgent(BaseAgent):
             request_context.raw_input,
         ]).lower()
 
-        if self._model and self.config.gemini.api_key:
+        if self._model and self.config.groq.api_key:
             prompt = (
                 "Curate resources for this debugging session.\n"
                 f"Bug symptom: {request_context.symptom}\n"
@@ -67,8 +67,8 @@ class LibrarianAgent(BaseAgent):
                 if generated:
                     return generated
             except Exception as e:
-                logger.warning("Librarian Gemini curation failed; using curated fallback: %s", e)
-                if is_gemini_quota_error(e):
+                logger.warning("Librarian Groq curation failed; using curated fallback: %s", e)
+                if is_groq_quota_error(e):
                     return []
 
         is_logic_or_filtering = any(

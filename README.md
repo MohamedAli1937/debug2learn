@@ -2,7 +2,7 @@
 
 Debug2Learn is an AI-assisted debugging tutor. It helps developers understand a failure, inspect evidence, form a hypothesis, and validate their own fix instead of silently generating code for them.
 
-The project combines a FastAPI web application, a command-line quest, deterministic code analysis, and Gemini-powered teaching agents.
+The project combines a FastAPI web application, a command-line quest, deterministic code analysis, and Groq-powered teaching agents.
 
 ## What It Does
 
@@ -20,19 +20,19 @@ The system distinguishes a failure location, such as a test, from the implementa
 
 ## Agent Team
 
-| Agent | Responsibility |
-| --- | --- |
-| Explorer | Maps files, functions, tests, and source relationships |
-| Decoder | Extracts symptoms, tracebacks, symbols, and relevant files |
-| Solver | Identifies root causes and creates a teaching plan |
-| Librarian | Curates resources related to the actual debugging concept |
-| Tracker | Snapshots files and evaluates developer changes |
-| Master | Provides Socratic guidance, questions, and progressive hints |
+| Agent     | Responsibility                                               |
+| --------- | ------------------------------------------------------------ |
+| Explorer  | Maps files, functions, tests, and source relationships       |
+| Decoder   | Extracts symptoms, tracebacks, symbols, and relevant files   |
+| Solver    | Identifies root causes and creates a teaching plan           |
+| Librarian | Curates resources related to the actual debugging concept    |
+| Tracker   | Snapshots files and evaluates developer changes              |
+| Master    | Provides Socratic guidance, questions, and progressive hints |
 
 ## Requirements
 
 - Python 3.11 or newer
-- A Gemini API key for AI-generated analysis and conversation
+- A Groq API key for AI-generated analysis and conversation
 - `pip` and a virtual environment
 
 ## Installation
@@ -47,8 +47,8 @@ pip install -r requirements.txt
 Create a `.env` file in the repository root:
 
 ```env
-GEMINI_API_KEY=your_api_key_here
-GEMINI_MODEL=gemini-3.8-flash
+GROQ_API_KEY=your_api_key_here
+GROQ_MODEL=llama-3.3-70b-versatile
 ```
 
 Never commit `.env` or expose the API key in browser code.
@@ -79,13 +79,13 @@ The CLI supports `hint`, `check`, `plan`, `resources`, `ask <question>`, and `qu
 
 The test suite covers the agents, analyzers, state models, tracker behavior, and the todo debugging workflow.
 
-## Gemini and Quota Behavior
+## Groq and Quota Behavior
 
-Gemini is used by the Decoder, Solver, Librarian, and Master when the SDK and API key are available. The default model is `gemini-3.8-flash`; set `GEMINI_MODEL` to use another model supported by your account.
+Groq is used by the Decoder, Solver, Librarian, and Master when the SDK and API key are available. The default model is `llama-3.3-70b-versatile`; set `GROQ_MODEL` to use another model supported by your account.
 
-When Gemini returns a quota or rate-limit error, Debug2Learn does not invent an AI response. The web session stops at startup with an explicit quota message. The local deterministic analyzers remain useful for tests and development, but they are not presented as Gemini-generated answers.
+When Groq returns a quota or rate-limit error, Debug2Learn does not invent an AI response. The web session stops at startup with an explicit quota message. The local deterministic analyzers remain useful for tests and development, but they are not presented as Groq-generated answers.
 
-If the API reports a `429` quota error, wait for the quota window to reset or review the billing and rate-limit settings for the Gemini project.
+If the API reports a `429` quota error, wait for the quota window to reset or review the billing and rate-limit settings for the Groq account.
 
 ## GitHub Pages Demo
 
@@ -93,7 +93,7 @@ The static interface is published at:
 
 <https://mohamedali1937.github.io/debug2learn/>
 
-GitHub Pages cannot run the FastAPI backend or safely hold a Gemini API key. The published page therefore provides a client-side demonstration. For real Gemini-powered debugging, run the local FastAPI server and use <http://127.0.0.1:8000>.
+GitHub Pages cannot run the FastAPI backend or safely hold a Groq API key. The published page therefore provides a client-side demonstration. For real Groq-powered debugging, run the local FastAPI server and use <http://127.0.0.1:8000>.
 
 ## Repository Layout
 
