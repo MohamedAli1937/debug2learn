@@ -1,3 +1,4 @@
+<p align="center"> <img src="assets\favicon.svg" width="80" alt="Debug2Learn Logo"> </p>
 # 🐾 Debug2Learn
 
 ### **Don't let AI fix your bugs. Let AI teach you to fix them.**
@@ -78,9 +79,9 @@ Debug2Learn uses six specialized characters.
 
 The AI agents are supported by deterministic utilities:
 
-* `ASTAnalyzer` — Python AST and symbol analysis
-* `GitAnalyzer` — local and remote Git change detection
-* `FileScanner` — project/file discovery
+- `ASTAnalyzer` — Python AST and symbol analysis
+- `GitAnalyzer` — local and remote Git change detection
+- `FileScanner` — project/file discovery
 
 These are **not AI agents**. They provide structured evidence to the agents.
 
@@ -223,7 +224,7 @@ Compares the change with the original diagnosis
                │
                ▼
         Developer tries again
-               
+
                OR
 
        🟢 Root cause addressed
@@ -385,17 +386,17 @@ debug2learn/
 
 ## Backend
 
-* **Python**
-* **FastAPI**
-* **Pydantic**
-* **Uvicorn**
-* **GitPython / Git CLI integration**
-* **Python AST**
+- **Python**
+- **FastAPI**
+- **Pydantic**
+- **Uvicorn**
+- **GitPython / Git CLI integration**
+- **Python AST**
 
 ## AI
 
-* **Groq API**
-* Default model:
+- **Groq API**
+- Default model:
 
 ```text
 openai/gpt-oss-120b
@@ -405,10 +406,10 @@ The model can be changed through environment configuration.
 
 ## Frontend
 
-* HTML5
-* CSS3
-* Vanilla JavaScript
-* SVG game characters
+- HTML5
+- CSS3
+- Vanilla JavaScript
+- SVG game characters
 
 No frontend framework is required for the MVP.
 
@@ -445,9 +446,9 @@ Render Backend
 
 ## Requirements
 
-* Python 3.11+
-* Git
-* A Groq API key
+- Python 3.11+
+- Git
+- A Groq API key
 
 ---
 
@@ -722,20 +723,20 @@ Verify that code changes are correctly identified at the symbol level.
 
 Verify:
 
-* working-tree changes
-* staged changes
-* remote changes
-* changed files
-* diffs
+- working-tree changes
+- staged changes
+- remote changes
+- changed files
+- diffs
 
 ### Agent validation
 
 Verify that Solver does not consider a change correct simply because:
 
-* the relevant file changed
-* a similarly named function was added
-* the developer claims it is fixed
-* the code looks superficially plausible
+- the relevant file changed
+- a similarly named function was added
+- the developer claims it is fixed
+- the code looks superficially plausible
 
 The original diagnosis remains the reference point.
 
@@ -888,12 +889,12 @@ Solver can determine whether a change addresses the diagnosis, but successful te
 
 The system uses:
 
-* traceback information
-* project structure
-* AST analysis
-* actual code
-* Git diffs
-* test output
+- traceback information
+- project structure
+- AST analysis
+- actual code
+- Git diffs
+- test output
 
 rather than relying only on the developer's description.
 
@@ -1037,21 +1038,21 @@ Debug2Learn is built around four layers:
 
 Potential future improvements:
 
-* [ ] Persistent user profiles
-* [ ] Multiple programming languages
-* [ ] Interactive code editor
-* [ ] Sandboxed test execution
-* [ ] More debugging scenarios
-* [ ] Difficulty levels
-* [ ] XP and achievement system
-* [ ] Debugging streaks
-* [ ] Multiplayer debugging quests
-* [ ] More deterministic validation rules
-* [ ] Richer AST analysis
-* [ ] GitHub OAuth integration
-* [ ] Repository-based debugging challenges
-* [ ] Learning analytics
-* [ ] Adaptive difficulty
+- [ ] Persistent user profiles
+- [ ] Multiple programming languages
+- [ ] Interactive code editor
+- [ ] Sandboxed test execution
+- [ ] More debugging scenarios
+- [ ] Difficulty levels
+- [ ] XP and achievement system
+- [ ] Debugging streaks
+- [ ] Multiplayer debugging quests
+- [ ] More deterministic validation rules
+- [ ] Richer AST analysis
+- [ ] GitHub OAuth integration
+- [ ] Repository-based debugging challenges
+- [ ] Learning analytics
+- [ ] Adaptive difficulty
 
 ---
 
@@ -1107,13 +1108,13 @@ Add the project's chosen license here before public distribution.
 
 Built with:
 
-* Python
-* FastAPI
-* Groq
-* Git
-* Python AST
-* HTML / CSS / JavaScript
-* SVG
+- Python
+- FastAPI
+- Groq
+- Git
+- Python AST
+- HTML / CSS / JavaScript
+- SVG
 
 And, most importantly:
 

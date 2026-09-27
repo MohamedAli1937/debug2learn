@@ -1,0 +1,58 @@
+<svg width="512" height="512" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Background -->
+  <rect width="64" height="64" rx="13" fill="#0C3A2B"/>
+
+  <!-- Leaf body -->
+  <path
+    d="M32 5
+       C20 12 10 22 6 32
+       C10 42 20 52 32 59
+       C44 52 54 42 58 32
+       C54 22 44 12 32 5Z"
+    fill="#48B461"
+  />
+
+  <!-- < LEFT -->
+  <path
+    d="M32 6
+       C21 12 12 21 7 32
+       C12 43 21 52 32 58"
+    fill="none"
+    stroke="#F3FFF6"
+    stroke-width="4"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <!-- > RIGHT -->
+  <path
+    d="M32 6
+       C43 12 52 21 57 32
+       C52 43 43 52 32 58"
+    fill="none"
+    stroke="#F3FFF6"
+    stroke-width="4"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <!-- / CENTRAL VEIN -->
+  <path
+    d="M21 44
+       L43 20"
+    fill="none"
+    stroke="#BEF2C9"
+    stroke-width="3.5"
+    stroke-linecap="round"
+  />
+
+  <!-- Stem -->
+  <path
+    d="M32 58 L32 62"
+    stroke="#F3FFF6"
+    stroke-width="3.5"
+    stroke-linecap="round"
+  />
+
+</svg>
