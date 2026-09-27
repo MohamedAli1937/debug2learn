@@ -1,3 +1,4 @@
+from fastapi import applications
 from __future__ import annotations
 
 import logging
@@ -104,15 +105,24 @@ Keep it under 4 sentences. Do NOT give away the fix."""
         if current_hint_count == 0:
             level = HintLevel.CONCEPTUAL
             level_name = "Nudge"
-            prompt_instruction = "Give a gentle conceptual nudge. Ask the developer to inspect what markers or states (such as '[x]') mean in the context of the problem."
+            prompt_instruction = (
+                "Give a gentle conceptual nudge based specifically on the diagnosed root cause. "
+                "Ask the learner to inspect the relevant function, variable, or behavior."
+            )
         elif current_hint_count == 1:
             level = HintLevel.DIRECTIONAL
             level_name = "Clue"
-            prompt_instruction = "Give a directional clue. Ask whether items marked with '[x]' (completed tasks) should be included in or excluded from the pending count."
+            prompt_instruction = (
+                "Give a directional clue based specifically on the diagnosed logic issue. "
+                "Help the learner narrow down the relevant condition or behavior without revealing the fix."
+            )
         else:
             level = HintLevel.SPECIFIC
             level_name = "Direct Clue"
-            prompt_instruction = "Give a direct clue pointing the developer toward the filter condition in the list comprehension, asking how to select items that do NOT match."
+            prompt_instruction = (
+                "Give a specific clue pointing toward the exact problematic logic identified by the Solver, "
+                "without writing the solution code."
+            )
 
         hypothesis = plan.hypothesis if plan else ""
         relevant_logic = plan.relevant_logic if plan else ""
@@ -145,27 +155,24 @@ Rules:
                     content = "Groq is unavailable because its API quota has been reached. No AI hint was generated."
 
         if not content:
-            is_todo_case = (
-                (plan and "[x]" in plan.hypothesis)
-                or (request_context and "[x]" in request_context.raw_input)
-                or "count_pending" in root_cause
-                or "[x]" in code_context
-            )
+            target = step.target_symbol or step.target_file or "the relevant code"
+            logic = relevant_logic or hypothesis or "the diagnosed behavior"
 
-            if is_todo_case:
-                if level == HintLevel.CONCEPTUAL:
-                    content = "Take a look at the task list: what does the `'[x]'` prefix indicate about a task's status compared to a pending task?"
-                elif level == HintLevel.DIRECTIONAL:
-                    content = "If `'[x] Build AI'` is marked as completed, should completed tasks be included in or excluded from the count of pending tasks?"
-                else:
-                    content = "Look at the condition inside the list comprehension in `count_pending()`: `if task.startswith('[x]')`. How can you check that a task does NOT start with `'[x]'`?"
+            if level == HintLevel.CONCEPTUAL:
+                content = (
+                    f"Look closely at `{target}`. "
+                    f"What behavior described by the diagnosis — {logic} — should you verify first?"
+                )
+            elif level == HintLevel.DIRECTIONAL:
+                content = (
+                    f"Focus on `{target}` and compare its current behavior with the expected behavior. "
+                    f"Which part of the logic could explain the diagnosed issue?"
+                )
             else:
-                if level == HintLevel.CONCEPTUAL:
-                    content = f"Reflect on the requirements for `{step.target_symbol or step.target_file}`: what condition distinguishes desired items from unwanted ones?"
-                elif level == HintLevel.DIRECTIONAL:
-                    content = f"Inspect the conditional check in `{step.target_symbol or step.target_file}`. Does the check currently evaluate to True for the wrong elements?"
-                else:
-                    content = f"Look directly at the boolean operator or condition in `{step.target_symbol or step.target_file}`. How can you invert or adjust this check?"
+                content = (
+                    f"Inspect the specific logic in `{target}` identified by the Solver. "
+                    f"What small change would make its behavior match the expected result?"
+        )
 
         return Hint(
             level=level,
