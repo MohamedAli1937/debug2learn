@@ -1,11 +1,34 @@
-<p align="center"> <img src="assets\favicon.svg" width="80" alt="Debug2Learn Logo"> </p>
-# 🐾 Debug2Learn
+<p align="center">
+  <img src="assets/favicon.svg" width="80" alt="Debug2Learn Logo">
+</p>
 
-### **Don't let AI fix your bugs. Let AI teach you to fix them.**
+<h1 align="center">Debug2Learn</h1>
 
-Debug2Learn is an **AI-powered educational debugging game** designed to teach developers how to debug instead of simply giving them the answer.
+<p align="center">
+  <strong>Don't let AI fix your bugs. Let AI teach you to fix them.</strong>
+</p>
 
-The system transforms debugging into an interactive jungle adventure where six specialized AI characters collaborate to guide the developer from an error report to a verified fix.
+<p align="center">
+  An AI-powered educational debugging game that turns debugging into an interactive learning experience.
+</p>
+
+<p align="center">
+  🦁 Explore · 🐼 Decode · 🦊 Solve · 🦉 Learn · 🦅 Track · 🐢 Discover
+</p>
+
+---
+
+## 🎯 What is Debug2Learn?
+
+Debug2Learn is an **AI-powered debugging game** built to teach developers the reasoning behind debugging—not just provide the final fix.
+
+Instead of automatically correcting broken code, Debug2Learn guides the developer through the debugging process:
+
+**Error → Investigation → Diagnosis → Hints → Code Change → Validation → Learning**
+
+Six specialized AI characters work together throughout the journey, each responsible for a different part of the debugging workflow.
+
+
 
 ---
 
