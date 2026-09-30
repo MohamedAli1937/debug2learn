@@ -148,7 +148,7 @@ This preserves the developer's reasoning process.
 
 ```text
 debug2learn/
-├── debug2learn/
+├── backend/
 │   ├── agents/
 │   │   ├── base.py
 │   │   ├── explorer.py
@@ -164,20 +164,20 @@ debug2learn/
 │   │   └── git_analyzer.py
 │   │
 │   ├── config/
-│   ├── core/
-│   └── server.py
+│   └── core/
 │
 ├── frontend/
-│   ├── index.html
-│   ├── style.css
-│   ├── app.js
-│   └── assets/
+│   └── index.html
 │
+├── assets/
 ├── tests/
-├── requirements.txt
+├── app.py
 ├── Dockerfile
-├── .env.example
-└── README.md
+├── main.py
+├── README.md
+├── render.yaml
+├── requirements.txt
+└── server.py
 ```
 
 ---
