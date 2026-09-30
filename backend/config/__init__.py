@@ -1,6 +1,6 @@
 """Configuration module."""
 
-from debug2learn.config.settings import (
+from backend.config.settings import (
     AppConfig,
     GroqConfig,
     load_config,

@@ -4,10 +4,10 @@ import difflib
 import logging
 from pathlib import Path
 
-from debug2learn.analyzers.ast_analyzer import ASTAnalyzer
-from debug2learn.analyzers.git_analyzer import GitAnalyzer
-from debug2learn.config.settings import AppConfig
-from debug2learn.core.models import (
+from backend.analyzers.ast_analyzer import ASTAnalyzer
+from backend.analyzers.git_analyzer import GitAnalyzer
+from backend.config.settings import AppConfig
+from backend.core.models import (
     Change,
     ChangeSet,
     ChangeType,
@@ -36,10 +36,6 @@ class TrackerAgent:
         # Initial file contents captured when the debugging session starts.
         self._file_snapshots: dict[str, str] = {}
 
-    # ------------------------------------------------------------------
-    # Path handling
-    # ------------------------------------------------------------------
-
     def _normalize_path(self, raw_path: str | Path) -> str:
         """
         Normalize a path or symbol reference into a project-relative path.
@@ -49,13 +45,9 @@ class TrackerAgent:
         if not s:
             return ""
 
-        # Handle references such as:
-        # file.py -> function_name
         if "->" in s:
             s = s.split("->")[0].strip()
 
-        # Handle references such as:
-        # file.py::function_name
         if "::" in s:
             s = s.split("::")[0].strip()
 
@@ -69,7 +61,6 @@ class TrackerAgent:
             except ValueError:
                 return p.name.replace("\\", "/")
 
-        # Relative path
         try:
             full = (self.project_path / p).resolve()
             rel = full.relative_to(self.project_path)
@@ -78,10 +69,6 @@ class TrackerAgent:
             pass
 
         return str(p).replace("\\", "/").lstrip("./")
-
-    # ------------------------------------------------------------------
-    # Snapshot
-    # ------------------------------------------------------------------
 
     def snapshot_relevant_files(self, relevant_files: list[str]) -> None:
         """
@@ -127,10 +114,6 @@ class TrackerAgent:
                     exc,
                 )
 
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
-
     def _is_relevant(
         self,
         path: str,
@@ -145,9 +128,7 @@ class TrackerAgent:
             return True
 
         return any(
-            norm == target
-            or norm.endswith(f"/{target}")
-            or target.endswith(f"/{norm}")
+            norm == target or norm.endswith(f"/{target}") or target.endswith(f"/{norm}")
             for target in target_files
         )
 
@@ -184,7 +165,6 @@ class TrackerAgent:
         if diff_text:
             raw_diffs.append(diff_text)
 
-        # Analyze symbol-level changes using AST.
         try:
             symbol_changes = self.ast_analyzer.compare_files(
                 old_code,
@@ -223,7 +203,6 @@ class TrackerAgent:
                 )
             )
 
-        # If AST did not identify symbols, still report the file change.
         if not symbol_changes:
             changes.append(
                 Change(
@@ -233,10 +212,6 @@ class TrackerAgent:
                     description=f"Changes made in {rel_file}",
                 )
             )
-
-    # ------------------------------------------------------------------
-    # Main change detection
-    # ------------------------------------------------------------------
 
     def track_changes(
         self,
@@ -259,10 +234,6 @@ class TrackerAgent:
         files_changed: set[str] = set()
         raw_diffs: list[str] = []
 
-        # --------------------------------------------------------------
-        # Determine relevant files
-        # --------------------------------------------------------------
-
         if relevant_files is not None:
             target_files = {
                 self._normalize_path(file)
@@ -271,10 +242,6 @@ class TrackerAgent:
             }
         else:
             target_files = set(self._file_snapshots.keys())
-
-        # --------------------------------------------------------------
-        # 1. Compare against in-memory snapshots
-        # --------------------------------------------------------------
 
         for rel_file in sorted(target_files):
             file_path = self.project_path / rel_file
@@ -288,9 +255,7 @@ class TrackerAgent:
                         Change(
                             file_path=rel_file,
                             change_type=ChangeType.FILE_DELETED,
-                            description=(
-                                f"File {rel_file} was deleted."
-                            ),
+                            description=(f"File {rel_file} was deleted."),
                         )
                     )
 
@@ -314,16 +279,9 @@ class TrackerAgent:
 
             old_code = self._file_snapshots.get(rel_file)
 
-            # Try matching by filename if the exact normalized path
-            # was not found.
             if old_code is None:
-                for snapshot_path, snapshot_code in (
-                    self._file_snapshots.items()
-                ):
-                    if (
-                        Path(snapshot_path).name
-                        == Path(rel_file).name
-                    ):
+                for snapshot_path, snapshot_code in self._file_snapshots.items():
+                    if Path(snapshot_path).name == Path(rel_file).name:
                         old_code = snapshot_code
                         break
 
@@ -338,10 +296,6 @@ class TrackerAgent:
                 files_changed=files_changed,
                 raw_diffs=raw_diffs,
             )
-
-        # --------------------------------------------------------------
-        # 2. Check local Git working-tree changes
-        # --------------------------------------------------------------
 
         if not changes and self.git_analyzer.is_available:
             try:
@@ -374,8 +328,7 @@ class TrackerAgent:
                                 change_type=change_type,
                                 diff=git_diff,
                                 description=(
-                                    f"Git local change: "
-                                    f"{category} {norm_file}"
+                                    f"Git local change: {category} {norm_file}"
                                 ),
                             )
                         )
@@ -385,10 +338,6 @@ class TrackerAgent:
                     "Local Git change detection failed: %s",
                     exc,
                 )
-
-        # --------------------------------------------------------------
-        # 3. Check remote Git repository
-        # --------------------------------------------------------------
 
         if not changes and self.git_analyzer.is_available:
             try:
@@ -450,8 +399,7 @@ class TrackerAgent:
                                 change_type=change_type,
                                 diff=remote_diff,
                                 description=(
-                                    f"Git remote change: "
-                                    f"{category} {norm_file}"
+                                    f"Git remote change: {category} {norm_file}"
                                 ),
                             )
                         )
@@ -462,21 +410,11 @@ class TrackerAgent:
                     exc,
                 )
 
-        # --------------------------------------------------------------
-        # Return result
-        # --------------------------------------------------------------
-
         return ChangeSet(
             changes=changes,
             files_changed=sorted(files_changed),
-            git_diff_raw="\n\n".join(
-                diff for diff in raw_diffs if diff
-            ),
+            git_diff_raw="\n\n".join(diff for diff in raw_diffs if diff),
         )
-
-    # ------------------------------------------------------------------
-    # File content
-    # ------------------------------------------------------------------
 
     def get_file_content(self, rel_path: str) -> str:
         """
@@ -504,7 +442,6 @@ class TrackerAgent:
                     exc,
                 )
 
-        # Fallback for callers passing an already-resolved path.
         direct_path = Path(rel_path)
 
         if direct_path.exists() and direct_path.is_file():

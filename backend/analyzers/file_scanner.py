@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from debug2learn.config.settings import (
+from backend.config.settings import (
     IGNORE_PATTERNS,
     MAX_FILE_SIZE,
     MAX_FILES_INITIAL_SCAN,
@@ -33,10 +33,10 @@ class FileScanner:
         for path in self._walk(base_path):
             if len(files) >= MAX_FILES_INITIAL_SCAN:
                 break
-            
+
             if not self._should_include(path):
                 continue
-            
+
             files.append(path)
 
         files.sort(key=lambda p: str(p.relative_to(base_path)))
@@ -46,10 +46,18 @@ class FileScanner:
         """Alias for scan."""
         return self.scan(project_path)
 
-    def find_dependency_files(self, project_path: Path | str | None = None) -> list[Path]:
+    def find_dependency_files(
+        self, project_path: Path | str | None = None
+    ) -> list[Path]:
         """Find requirements.txt, Pipfile, pyproject.toml, etc."""
         base_path = Path(project_path).resolve() if project_path else self.project_path
-        dep_names = {"requirements.txt", "Pipfile", "pyproject.toml", "setup.py", "environment.yml"}
+        dep_names = {
+            "requirements.txt",
+            "Pipfile",
+            "pyproject.toml",
+            "setup.py",
+            "environment.yml",
+        }
         found = []
         for name in dep_names:
             p = base_path / name
@@ -93,7 +101,7 @@ class FileScanner:
     def get_dependency_files(self) -> dict[str, Path]:
         """
         Find dependency/configuration files in the project.
-        
+
         Returns a dict of file type → path.
         """
         candidates = {

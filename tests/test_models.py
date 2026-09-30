@@ -4,27 +4,18 @@ Tests for core data models.
 Validates Pydantic model serialization, defaults, and computed properties.
 """
 
-import json
-from datetime import datetime
-
-import pytest
-
-from debug2learn.core.models import (
+from backend.core.models import (
     Change,
     ChangeSet,
     ChangeType,
     DebuggingPlan,
     DebuggingStep,
-    FileContext,
-    FunctionInfo,
-    HintLevel,
     Language,
     ProjectContext,
     RequestContext,
     SessionPhase,
     SessionState,
     TestRunResult,
-    TestStatus,
 )
 
 
@@ -59,13 +50,15 @@ class TestChangeSet:
         assert cs.summary == "No changes detected."
 
     def test_with_changes(self):
-        cs = ChangeSet(changes=[
-            Change(
-                file_path="auth.py",
-                change_type=ChangeType.FUNCTION_ADDED,
-                symbol="validate_token",
-            )
-        ])
+        cs = ChangeSet(
+            changes=[
+                Change(
+                    file_path="auth.py",
+                    change_type=ChangeType.FUNCTION_ADDED,
+                    symbol="validate_token",
+                )
+            ]
+        )
         assert cs.has_changes is True
         assert "function_added" in cs.summary
         assert "validate_token" in cs.summary

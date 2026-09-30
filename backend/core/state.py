@@ -9,13 +9,10 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any
 
-from debug2learn.core.models import (
+from backend.core.models import (
     DebuggingPlan,
     Hint,
-    HintLevel,
-    LearningProgress,
     LearningResource,
     ProjectContext,
     RequestContext,
@@ -100,7 +97,9 @@ class StateManager:
         self.state.resources.extend(resources)
         self.state.last_activity = datetime.now()
 
-    def add_message(self, role: str, content: str, message_type: str = "text") -> TeacherMessage:
+    def add_message(
+        self, role: str, content: str, message_type: str = "text"
+    ) -> TeacherMessage:
         msg = TeacherMessage(
             role=role,
             content=content,
@@ -116,7 +115,7 @@ class StateManager:
         plan = self.state.debugging_plan
         if not plan:
             return False
-        
+
         if plan.current_step < len(plan.steps):
             plan.steps[plan.current_step].completed = True
             plan.current_step += 1

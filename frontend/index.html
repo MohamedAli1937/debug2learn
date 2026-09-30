@@ -189,8 +189,19 @@
         gap: 12px;
       }
       .brand-icon {
-        font-size: 26px;
-        filter: drop-shadow(0 0 10px rgba(61, 220, 132, 0.5));
+        display: flex;
+        align-items: center;
+        width: 32px !important;
+        height: 32px !important;
+        filter: drop-shadow(0 0 6px rgba(61, 220, 132, 0.5));
+      }
+
+      .brand-icon img {
+        width: 32px !important;
+        height: 32px !important;
+        max-width: 32px !important;
+        max-height: 32px !important;
+        object-fit: contain;
       }
       .brand-name {
         font-family: var(--font-display);
@@ -1841,7 +1852,9 @@
       <!-- ═══ Top bar ═══ -->
       <header class="top-bar">
         <div class="brand">
-          <span class="brand-icon">🌴</span>
+          <span class="brand-icon">
+            <img src="/assets/favicon.svg" alt="Debug2Learn" />
+          </span>
           <div>
             <div class="brand-name">Debug2Learn</div>
             <div class="brand-tagline">Don't let AI fix your bugs. Let AI teach you.</div>

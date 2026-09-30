@@ -4,13 +4,9 @@ Tests for the AST Analyzer.
 Tests deterministic Python code analysis without needing an LLM.
 """
 
-import ast
-import tempfile
-from pathlib import Path
-
 import pytest
 
-from debug2learn.analyzers.ast_analyzer import ASTAnalyzer
+from backend.analyzers.ast_analyzer import ASTAnalyzer
 
 
 @pytest.fixture
@@ -175,7 +171,10 @@ class TestASTAnalyzer:
         new_ctx = analyzer.analyze_file(auth_path, tmp_project)
 
         changes = analyzer.compare_files(old_ctx, new_ctx)
-        assert any(c["type"] == "function_added" and c["symbol"] == "validate_token" for c in changes)
+        assert any(
+            c["type"] == "function_added" and c["symbol"] == "validate_token"
+            for c in changes
+        )
 
     def test_compare_files_detect_deleted_function(self, analyzer, tmp_project):
         auth_path = tmp_project / "auth.py"
@@ -199,7 +198,10 @@ class TestASTAnalyzer:
         new_ctx = analyzer.analyze_file(auth_path, tmp_project)
 
         changes = analyzer.compare_files(old_ctx, new_ctx)
-        assert any(c["type"] == "function_deleted" and c["symbol"] == "create_token" for c in changes)
+        assert any(
+            c["type"] == "function_deleted" and c["symbol"] == "create_token"
+            for c in changes
+        )
 
     def test_invalid_python_file(self, analyzer, tmp_project):
         bad_file = tmp_project / "bad.py"

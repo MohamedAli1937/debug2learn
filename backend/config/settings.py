@@ -7,10 +7,10 @@ Provides centralized configuration for all agents and components.
 
 import os
 import sys
-from pathlib import Path
 from dataclasses import dataclass, field
-from dotenv import load_dotenv
+from pathlib import Path
 
+from dotenv import load_dotenv
 
 # Session data directory name (created inside target projects)
 SESSION_DIR = ".debug2learn"
@@ -49,6 +49,7 @@ MAX_CONTEXT_TOKENS = 30_000
 @dataclass
 class GroqConfig:
     """Configuration for the Groq API."""
+
     api_key: str = ""
     model: str = "llama-3.3-70b-versatile"
     temperature: float = 0.3
@@ -58,6 +59,7 @@ class GroqConfig:
 @dataclass
 class AppConfig:
     """Main application configuration."""
+
     groq: GroqConfig = field(default_factory=GroqConfig)
     log_level: str = "INFO"
     project_path: Path = field(default_factory=lambda: Path.cwd())
@@ -72,7 +74,7 @@ class AppConfig:
 def load_config(project_path: Path | None = None) -> AppConfig:
     """
     Load configuration from environment variables and .env file.
-    
+
     Priority:
     1. Environment variables (highest)
     2. .env file in the project directory
@@ -84,13 +86,13 @@ def load_config(project_path: Path | None = None) -> AppConfig:
         env_file = project_path / ".env"
         if env_file.exists():
             load_dotenv(env_file)
-    
+
     # Load project-level configuration and support a .env placed in the active venv.
     package_root = Path(__file__).resolve().parents[2]
     for env_file in (package_root / ".env", Path(sys.prefix) / ".env"):
         if env_file.exists():
             load_dotenv(env_file, override=False)
-    
+
     # Load from environment
     load_dotenv(override=False)
 
@@ -113,14 +115,14 @@ def load_config(project_path: Path | None = None) -> AppConfig:
 def validate_config(config: AppConfig) -> list[str]:
     """Validate configuration and return list of errors."""
     errors = []
-    
+
     if not config.groq.api_key:
         errors.append(
             "GROQ_API_KEY is not set. "
             "Set it in your .env file or as an environment variable."
         )
-    
+
     if not config.project_path.exists():
         errors.append(f"Project path does not exist: {config.project_path}")
-    
+
     return errors

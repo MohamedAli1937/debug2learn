@@ -3,9 +3,9 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from debug2learn.agents.base import BaseAgent, is_groq_quota_error
-from debug2learn.config.settings import AppConfig
-from debug2learn.core.models import (
+from backend.agents.base import BaseAgent, is_groq_quota_error
+from backend.config.settings import AppConfig
+from backend.core.models import (
     DebuggingPlan,
     LearningResource,
     RequestContext,
@@ -74,16 +74,10 @@ class LibrarianAgent(BaseAgent):
         """
 
         if not plan:
-            logger.warning(
-                "Librarian called without a debugging plan."
-            )
+            logger.warning("Librarian called without a debugging plan.")
             return self._generic_fallback(request_context)
 
-        root_cause = (
-            plan.root_cause_location
-            or plan.bug_location
-            or "unknown"
-        )
+        root_cause = plan.root_cause_location or plan.bug_location or "unknown"
 
         hypothesis = plan.hypothesis or ""
         relevant_logic = plan.relevant_logic or ""
@@ -173,9 +167,7 @@ Return only valid JSON.
                 )
 
                 if is_groq_quota_error(e):
-                    logger.warning(
-                        "Groq quota reached during Librarian curation."
-                    )
+                    logger.warning("Groq quota reached during Librarian curation.")
 
         return self._diagnosis_fallback(
             request_context=request_context,
@@ -214,9 +206,7 @@ Return only valid JSON.
             if not url.startswith(("https://", "http://")):
                 continue
 
-            resource_type = str(
-                item.get("resource_type", "documentation")
-            ).strip()
+            resource_type = str(item.get("resource_type", "documentation")).strip()
 
             if resource_type not in (
                 "documentation",
@@ -225,9 +215,7 @@ Return only valid JSON.
             ):
                 resource_type = "documentation"
 
-            concept = str(
-                item.get("concept", "")
-            ).strip()
+            concept = str(item.get("concept", "")).strip()
 
             resources.append(
                 LearningResource(
@@ -278,10 +266,7 @@ Return only valid JSON.
             return "No explicit error messages provided."
 
         if isinstance(errors, (list, tuple)):
-            return "\n".join(
-                f"- {str(error)}"
-                for error in errors[:10]
-            )
+            return "\n".join(f"- {error!s}" for error in errors[:10])
 
         return str(errors)
 
@@ -297,16 +282,9 @@ Return only valid JSON.
         keyword detection.
         """
 
-        concept = (
-            plan.concept
-            or plan.hypothesis
-            or "debugging and program behavior"
-        )
+        concept = plan.concept or plan.hypothesis or "debugging and program behavior"
 
-        domain = (
-            request_context.domain
-            or ""
-        ).lower()
+        domain = (request_context.domain or "").lower()
 
         resources: list[LearningResource] = []
 
@@ -362,10 +340,7 @@ Return only valid JSON.
         Minimal fallback when no Solver diagnosis exists.
         """
 
-        domain = (
-            request_context.domain
-            or ""
-        ).lower()
+        domain = (request_context.domain or "").lower()
 
         if "python" in domain:
             return [

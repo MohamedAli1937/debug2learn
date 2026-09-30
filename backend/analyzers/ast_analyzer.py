@@ -12,11 +12,11 @@ import ast
 import hashlib
 from pathlib import Path
 
-from debug2learn.core.models import (
-    FunctionInfo,
+from backend.core.models import (
     ClassInfo,
-    ImportInfo,
     FileContext,
+    FunctionInfo,
+    ImportInfo,
     Language,
 )
 
@@ -24,7 +24,9 @@ from debug2learn.core.models import (
 class ASTAnalyzer:
     """Analyzes Python files using the AST to extract structural info."""
 
-    def analyze_source(self, source: str, file_path: str = "file.py", project_root: str = ".") -> FileContext | None:
+    def analyze_source(
+        self, source: str, file_path: str = "file.py", project_root: str = "."
+    ) -> FileContext | None:
         """Analyze source code string directly."""
         rel_path = file_path.replace("\\", "/")
         try:
@@ -50,11 +52,17 @@ class ASTAnalyzer:
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 for alias in node.names:
-                    context.imports.append(ImportInfo(module=alias.name, names=[alias.asname or alias.name]))
+                    context.imports.append(
+                        ImportInfo(
+                            module=alias.name, names=[alias.asname or alias.name]
+                        )
+                    )
             elif isinstance(node, ast.ImportFrom):
                 if node.module:
                     names = [a.name for a in node.names]
-                    context.imports.append(ImportInfo(module=node.module, names=names, is_from_import=True))
+                    context.imports.append(
+                        ImportInfo(module=node.module, names=names, is_from_import=True)
+                    )
 
         return context
 
@@ -82,7 +90,7 @@ class ASTAnalyzer:
     def analyze_file(self, file_path: Path, project_root: Path) -> FileContext | None:
         """
         Analyze a single Python file and return its structural context.
-        
+
         Returns None if the file cannot be parsed.
         """
         try:
@@ -174,7 +182,10 @@ class ASTAnalyzer:
         name = Path(relative_path).name.lower()
         if name in ("main.py", "app.py", "manage.py", "wsgi.py", "asgi.py", "run.py"):
             return True
-        if 'if __name__ == "__main__"' in source or "if __name__ == '__main__'" in source:
+        if (
+            'if __name__ == "__main__"' in source
+            or "if __name__ == '__main__'" in source
+        ):
             return True
         return False
 
@@ -208,27 +219,31 @@ class ASTAnalyzer:
             )
 
         changes = []
-        
+
         if old_context is None and new_context is not None:
-            changes.append({
-                "type": "file_added",
-                "change_type": "file_added",
-                "file": new_context.relative_path,
-                "symbol": "",
-                "description": f"File {new_context.relative_path} added",
-            })
+            changes.append(
+                {
+                    "type": "file_added",
+                    "change_type": "file_added",
+                    "file": new_context.relative_path,
+                    "symbol": "",
+                    "description": f"File {new_context.relative_path} added",
+                }
+            )
             return changes
-        
+
         if old_context is not None and new_context is None:
-            changes.append({
-                "type": "file_deleted",
-                "change_type": "file_deleted",
-                "file": old_context.relative_path,
-                "symbol": "",
-                "description": f"File {old_context.relative_path} deleted",
-            })
+            changes.append(
+                {
+                    "type": "file_deleted",
+                    "change_type": "file_deleted",
+                    "file": old_context.relative_path,
+                    "symbol": "",
+                    "description": f"File {old_context.relative_path} deleted",
+                }
+            )
             return changes
-        
+
         if old_context is None or new_context is None:
             return changes
 
@@ -237,41 +252,112 @@ class ASTAnalyzer:
         new_funcs = {f.name for f in new_context.functions}
 
         for name in new_funcs - old_funcs:
-            changes.append({"type": "function_added", "change_type": "function_added", "symbol": name, "file": new_context.relative_path, "description": f"Function {name} added"})
+            changes.append(
+                {
+                    "type": "function_added",
+                    "change_type": "function_added",
+                    "symbol": name,
+                    "file": new_context.relative_path,
+                    "description": f"Function {name} added",
+                }
+            )
         for name in old_funcs - new_funcs:
-            changes.append({"type": "function_deleted", "change_type": "function_deleted", "symbol": name, "file": new_context.relative_path, "description": f"Function {name} deleted"})
+            changes.append(
+                {
+                    "type": "function_deleted",
+                    "change_type": "function_deleted",
+                    "symbol": name,
+                    "file": new_context.relative_path,
+                    "description": f"Function {name} deleted",
+                }
+            )
         for name in old_funcs & new_funcs:
             old_f = next(f for f in old_context.functions if f.name == name)
             new_f = next(f for f in new_context.functions if f.name == name)
             is_modified = (
                 old_f.parameters != new_f.parameters
-                or (bool(old_f.body_hash) and bool(new_f.body_hash) and old_f.body_hash != new_f.body_hash)
-                or (old_f.line_end - old_f.line_start != new_f.line_end - new_f.line_start)
+                or (
+                    bool(old_f.body_hash)
+                    and bool(new_f.body_hash)
+                    and old_f.body_hash != new_f.body_hash
+                )
+                or (
+                    old_f.line_end - old_f.line_start
+                    != new_f.line_end - new_f.line_start
+                )
             )
             if is_modified:
-                changes.append({"type": "function_modified", "change_type": "function_modified", "symbol": name, "file": new_context.relative_path, "description": f"Function {name} modified"})
+                changes.append(
+                    {
+                        "type": "function_modified",
+                        "change_type": "function_modified",
+                        "symbol": name,
+                        "file": new_context.relative_path,
+                        "description": f"Function {name} modified",
+                    }
+                )
 
         # Compare classes
         old_classes = {c.name for c in old_context.classes}
         new_classes = {c.name for c in new_context.classes}
 
         for name in new_classes - old_classes:
-            changes.append({"type": "class_added", "change_type": "class_added", "symbol": name, "file": new_context.relative_path, "description": f"Class {name} added"})
+            changes.append(
+                {
+                    "type": "class_added",
+                    "change_type": "class_added",
+                    "symbol": name,
+                    "file": new_context.relative_path,
+                    "description": f"Class {name} added",
+                }
+            )
         for name in old_classes - new_classes:
-            changes.append({"type": "class_deleted", "change_type": "class_deleted", "symbol": name, "file": new_context.relative_path, "description": f"Class {name} deleted"})
+            changes.append(
+                {
+                    "type": "class_deleted",
+                    "change_type": "class_deleted",
+                    "symbol": name,
+                    "file": new_context.relative_path,
+                    "description": f"Class {name} deleted",
+                }
+            )
         for name in old_classes & new_classes:
             old_c = next(c for c in old_context.classes if c.name == name)
             new_c = next(c for c in new_context.classes if c.name == name)
             if old_c.methods != new_c.methods or old_c.bases != new_c.bases:
-                changes.append({"type": "class_modified", "change_type": "class_modified", "symbol": name, "file": new_context.relative_path, "description": f"Class {name} modified"})
+                changes.append(
+                    {
+                        "type": "class_modified",
+                        "change_type": "class_modified",
+                        "symbol": name,
+                        "file": new_context.relative_path,
+                        "description": f"Class {name} modified",
+                    }
+                )
 
         # Compare imports
         old_imports = {(i.module, tuple(i.names)) for i in old_context.imports}
         new_imports = {(i.module, tuple(i.names)) for i in new_context.imports}
 
         for imp in new_imports - old_imports:
-            changes.append({"type": "import_added", "change_type": "import_added", "symbol": imp[0], "file": new_context.relative_path, "description": f"Import {imp[0]} added"})
+            changes.append(
+                {
+                    "type": "import_added",
+                    "change_type": "import_added",
+                    "symbol": imp[0],
+                    "file": new_context.relative_path,
+                    "description": f"Import {imp[0]} added",
+                }
+            )
         for imp in old_imports - new_imports:
-            changes.append({"type": "import_removed", "change_type": "import_removed", "symbol": imp[0], "file": new_context.relative_path, "description": f"Import {imp[0]} removed"})
+            changes.append(
+                {
+                    "type": "import_removed",
+                    "change_type": "import_removed",
+                    "symbol": imp[0],
+                    "file": new_context.relative_path,
+                    "description": f"Import {imp[0]} removed",
+                }
+            )
 
         return changes

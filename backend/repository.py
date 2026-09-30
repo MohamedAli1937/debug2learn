@@ -13,7 +13,9 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 _GITHUB_HOSTS = {"github.com", "www.github.com"}
-_GITHUB_PATH = re.compile(r"^/(?P<owner>[A-Za-z0-9_.-]+)/(?P<repo>[A-Za-z0-9_.-]+?)(?:\.git)?(?:/(?P<rest>.*))?$")
+_GITHUB_PATH = re.compile(
+    r"^/(?P<owner>[A-Za-z0-9_.-]+)/(?P<repo>[A-Za-z0-9_.-]+?)(?:\.git)?(?:/(?P<rest>.*))?$"
+)
 
 
 class RepositoryError(Exception):
@@ -91,7 +93,9 @@ def _parse_github_url(raw_url: str) -> tuple[str, str | None, str | None]:
 
     match = _GITHUB_PATH.match(parsed.path or "")
     if not match:
-        raise RepositoryError("GitHub URL must look like https://github.com/owner/repo.")
+        raise RepositoryError(
+            "GitHub URL must look like https://github.com/owner/repo."
+        )
 
     owner = match.group("owner")
     repo = match.group("repo")
@@ -106,8 +110,17 @@ def _parse_github_url(raw_url: str) -> tuple[str, str | None, str | None]:
             branch = parts[1]
             nested = "/".join(parts[2:])
             subdir = nested or None
-        elif parts[0] not in {"issues", "pull", "commit", "actions", "wiki", "releases"}:
-            raise RepositoryError("GitHub URL must look like https://github.com/owner/repo.")
+        elif parts[0] not in {
+            "issues",
+            "pull",
+            "commit",
+            "actions",
+            "wiki",
+            "releases",
+        }:
+            raise RepositoryError(
+                "GitHub URL must look like https://github.com/owner/repo."
+            )
 
     return clone_url, branch, subdir
 

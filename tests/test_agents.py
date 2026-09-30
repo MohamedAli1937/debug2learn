@@ -3,24 +3,21 @@ Tests for Debug2Learn Game Agents.
 Validates Explorer, Decoder, Solver, Tracker, Librarian, and Master.
 """
 
-from pathlib import Path
-
 import pytest
 
-from debug2learn.agents.decoder import DecoderAgent
-from debug2learn.agents.explorer import ExplorerAgent
-from debug2learn.agents.librarian import LibrarianAgent
-from debug2learn.agents.master import MasterAgent
-from debug2learn.agents.solver import SolverAgent
-from debug2learn.agents.tracker import TrackerAgent
-from debug2learn.config.settings import AppConfig
-from debug2learn.core.models import (
+from backend.agents.decoder import DecoderAgent
+from backend.agents.explorer import ExplorerAgent
+from backend.agents.librarian import LibrarianAgent
+from backend.agents.master import MasterAgent
+from backend.agents.solver import SolverAgent
+from backend.agents.tracker import TrackerAgent
+from backend.config.settings import AppConfig
+from backend.core.models import (
     DebuggingPlan,
     DebuggingStep,
     HintLevel,
     ProjectContext,
     RequestContext,
-    SessionState,
 )
 
 
@@ -59,7 +56,10 @@ def test_solver_prioritizes_missing_import(config):
     plan = SolverAgent(config).create_plan(
         project,
         request,
-        {"test_todo.py": "from todo import remove_task", "todo.py": "def add_task(tasks, task): pass"},
+        {
+            "test_todo.py": "from todo import remove_task",
+            "todo.py": "def add_task(tasks, task): pass",
+        },
     )
     assert "remove_task" in plan.hypothesis
     assert "count_pending" not in plan.hypothesis
@@ -82,7 +82,9 @@ def test_solver_fallback_plan(config):
         symptom="KeyError: 'user_id'",
         relevant_files=["auth.py"],
     )
-    plan = agent.create_plan(p_ctx, r_ctx, {"auth.py": "def auth(d): return d['user_id']"})
+    plan = agent.create_plan(
+        p_ctx, r_ctx, {"auth.py": "def auth(d): return d['user_id']"}
+    )
     assert isinstance(plan, DebuggingPlan)
     assert len(plan.steps) >= 1
     assert plan.steps[0].target_file == "auth.py"
@@ -164,4 +166,3 @@ FAILED test_todo.py::test_count_pending - assert 3 == 2
     res3 = decoder.parse_test_output(out3)
     assert res3.all_passed is True
     assert res3.passed == 3
-

@@ -2,18 +2,14 @@
 Tests for in-memory StateManager.
 """
 
-import pytest
-
-from debug2learn.core.models import (
+from backend.core.models import (
     DebuggingPlan,
     DebuggingStep,
     Hint,
     HintLevel,
-    LearningResource,
-    RequestContext,
     SessionPhase,
 )
-from debug2learn.core.state import StateManager
+from backend.core.state import StateManager
 
 
 def test_state_manager_init():

@@ -5,9 +5,9 @@ import re
 from pathlib import Path
 from typing import Any
 
-from debug2learn.agents.base import BaseAgent, is_groq_quota_error
-from debug2learn.config.settings import AppConfig
-from debug2learn.core.models import (
+from backend.agents.base import BaseAgent, is_groq_quota_error
+from backend.config.settings import AppConfig
+from backend.core.models import (
     ChangeSet,
     DebuggingPlan,
     DebuggingStep,
@@ -141,10 +141,6 @@ class SolverAgent(BaseAgent):
         root_cause_symbol = target_fn or ""
         failure_location = request_context.failure_location
 
-        # --------------------------------------------------------------
-        # Locate the target function from actual source code.
-        # --------------------------------------------------------------
-
         if target_fn:
             function_pattern = re.compile(
                 rf"^\s*def\s+{re.escape(target_fn)}\s*\(",
@@ -159,13 +155,7 @@ class SolverAgent(BaseAgent):
         if not root_cause_file and source_files:
             root_cause_file = next(iter(source_files))
 
-        # --------------------------------------------------------------
-        # Detect missing imports from actual test/source relationships.
-        # --------------------------------------------------------------
-
-        missing_import = self._missing_import_name(
-            request_context.raw_input
-        )
+        missing_import = self._missing_import_name(request_context.raw_input)
 
         if not missing_import:
             missing_import = self._find_missing_import(
@@ -182,23 +172,15 @@ class SolverAgent(BaseAgent):
                 relevant_code=relevant_code,
             )
 
-        # --------------------------------------------------------------
-        # Infer failure location when possible.
-        # --------------------------------------------------------------
-
         if not failure_location and test_files:
             test_file = next(iter(test_files))
             test_code = test_files[test_file]
 
             if target_fn:
-                test_name_pattern = re.compile(
-                    rf"\btest_{re.escape(target_fn)}\b"
-                )
+                test_name_pattern = re.compile(rf"\btest_{re.escape(target_fn)}\b")
 
                 if test_name_pattern.search(test_code):
-                    failure_location = (
-                        f"{test_file}::test_{target_fn}"
-                    )
+                    failure_location = f"{test_file}::test_{target_fn}"
                 else:
                     failure_location = f"{test_file}::(test)"
             else:
@@ -275,9 +257,7 @@ Raw Developer Input:
                         relevant_code=relevant_code,
                     )
 
-                confidence = self._safe_confidence(
-                    data.get("confidence", 0.9)
-                )
+                confidence = self._safe_confidence(data.get("confidence", 0.9))
 
                 return DebuggingPlan(
                     hypothesis=(
@@ -290,20 +270,13 @@ Raw Developer Input:
                         )
                     ),
                     confidence=confidence,
-                    evidence=self._normalize_evidence(
-                        data.get("evidence")
-                    ),
+                    evidence=self._normalize_evidence(data.get("evidence")),
                     bug_location=(
-                        data.get("root_cause_location")
-                        or root_cause_location
+                        data.get("root_cause_location") or root_cause_location
                     ),
-                    failure_location=(
-                        data.get("failure_location")
-                        or failure_location
-                    ),
+                    failure_location=(data.get("failure_location") or failure_location),
                     root_cause_location=(
-                        data.get("root_cause_location")
-                        or root_cause_location
+                        data.get("root_cause_location") or root_cause_location
                     ),
                     relevant_logic=(
                         data.get("relevant_logic")
@@ -333,13 +306,7 @@ Raw Developer Input:
                 )
 
                 if is_groq_quota_error(exc):
-                    logger.warning(
-                        "Groq quota reached during plan generation."
-                    )
-
-        # --------------------------------------------------------------
-        # Deterministic fallback
-        # --------------------------------------------------------------
+                    logger.warning("Groq quota reached during plan generation.")
 
         hypothesis = self._analyze_code_logic(
             root_cause_file,
@@ -371,11 +338,7 @@ Raw Developer Input:
 
         return DebuggingPlan(
             hypothesis=hypothesis,
-            confidence=(
-                0.95
-                if target_fn and root_cause_file
-                else 0.80
-            ),
+            confidence=(0.95 if target_fn and root_cause_file else 0.80),
             evidence=[
                 (
                     f"Failure detected by: {failure_location}"
@@ -396,10 +359,6 @@ Raw Developer Input:
             steps=steps,
             relevant_code_snippets=relevant_code,
         )
-
-    # ------------------------------------------------------------------
-    # Import analysis
-    # ------------------------------------------------------------------
 
     def _missing_import_name(self, text: str) -> str:
         """Extract a missing symbol from an ImportError message."""
@@ -462,11 +421,7 @@ Raw Developer Input:
 
             for imported_names in imports:
                 for name in imported_names.split(","):
-                    candidate = (
-                        name.strip()
-                        .split(" as ", 1)[0]
-                        .strip()
-                    )
+                    candidate = name.strip().split(" as ", 1)[0].strip()
 
                     if (
                         re.fullmatch(
@@ -504,11 +459,7 @@ Raw Developer Input:
             "This prevents the test module from being collected."
         )
 
-        failure_file = (
-            failure_loc.split("::", 1)[0]
-            if failure_loc
-            else "test file"
-        )
+        failure_file = failure_loc.split("::", 1)[0] if failure_loc else "test file"
 
         steps = [
             DebuggingStep(
@@ -551,17 +502,10 @@ Raw Developer Input:
 
         return DebuggingPlan(
             hypothesis=hypothesis,
-            confidence=(
-                0.98
-                if not source_has_symbol
-                else 0.80
-            ),
+            confidence=(0.98 if not source_has_symbol else 0.80),
             evidence=[
                 f"Import analysis identified missing symbol: {missing_import}",
-                (
-                    f"Source inspected in: "
-                    f"{root_cause_file or 'source files'}"
-                ),
+                (f"Source inspected in: {root_cause_file or 'source files'}"),
             ],
             bug_location=root_location,
             failure_location=failure_loc,
@@ -574,10 +518,6 @@ Raw Developer Input:
             steps=steps,
             relevant_code_snippets=relevant_code,
         )
-
-    # ------------------------------------------------------------------
-    # Generic deterministic reasoning
-    # ------------------------------------------------------------------
 
     def _analyze_code_logic(
         self,
@@ -692,10 +632,6 @@ Raw Developer Input:
 
         return "Program Logic and Debugging"
 
-    # ------------------------------------------------------------------
-    # Pedagogical steps
-    # ------------------------------------------------------------------
-
     def _construct_pedagogical_steps(
         self,
         root_cause_file: str,
@@ -761,10 +697,6 @@ Raw Developer Input:
             ),
         ]
 
-    # ------------------------------------------------------------------
-    # Change evaluation
-    # ------------------------------------------------------------------
-
     def evaluate_changes(
         self,
         plan: DebuggingPlan,
@@ -785,50 +717,27 @@ Raw Developer Input:
 
         current_step = (
             plan.steps[plan.current_step]
-            if (
-                plan.steps
-                and 0 <= plan.current_step < len(plan.steps)
-            )
+            if (plan.steps and 0 <= plan.current_step < len(plan.steps))
             else None
         )
 
-        test_cmd = (
-            getattr(plan, "test_command", None)
-            or "pytest"
-        )
+        test_cmd = getattr(plan, "test_command", None) or "pytest"
 
         changed_files = (
-            ", ".join(changes.files_changed)
-            if changes.files_changed
-            else "None"
+            ", ".join(changes.files_changed) if changes.files_changed else "None"
         )
 
-        changed_symbols = [
-            change.symbol
-            for change in changes.changes
-            if change.symbol
-        ]
+        changed_symbols = [change.symbol for change in changes.changes if change.symbol]
 
-        root_cause = (
-            plan.root_cause_location
-            or plan.bug_location
-            or "Unknown"
-        )
+        root_cause = plan.root_cause_location or plan.bug_location or "Unknown"
 
         relevant_logic = (
-            plan.relevant_logic
-            or "No detailed logic description available."
+            plan.relevant_logic or "No detailed logic description available."
         )
 
-        hypothesis = (
-            plan.hypothesis
-            or "No hypothesis available."
-        )
+        hypothesis = plan.hypothesis or "No hypothesis available."
 
-        concept = (
-            plan.concept
-            or "Unknown"
-        )
+        concept = plan.concept or "Unknown"
 
         code_section = self._build_code_section(
             changed_code,
@@ -844,7 +753,6 @@ Raw Developer Input:
 
         if current_step:
             step_context = f"""
-## CURRENT DEBUGGING STEP
 
 Title:
 {current_step.title}
@@ -988,37 +896,19 @@ Do not reveal a direct code fix when the change is wrong or incomplete.
                 response = self._send_sync(prompt)
                 data = self._parse_json_response(response)
 
-                is_relevant = bool(
-                    data.get("is_relevant", False)
-                )
+                is_relevant = bool(data.get("is_relevant", False))
 
-                on_right_track = bool(
-                    data.get("on_right_track", False)
-                )
+                on_right_track = bool(data.get("on_right_track", False))
 
-                ready_for_test = bool(
-                    data.get("ready_for_test", False)
-                )
+                ready_for_test = bool(data.get("ready_for_test", False))
 
-                advance_step = bool(
-                    data.get("advance_step", False)
-                )
+                advance_step = bool(data.get("advance_step", False))
 
-                # ------------------------------------------------------
-                # Safety guard:
-                # A change cannot be ready for testing unless it is
-                # actually relevant and on the right track.
-                # ------------------------------------------------------
-
-                if ready_for_test and not (
-                    is_relevant and on_right_track
-                ):
+                if ready_for_test and not (is_relevant and on_right_track):
                     ready_for_test = False
 
                 if ready_for_test:
-                    state = (
-                        ValidationState.AWAITING_TEST_VALIDATION
-                    )
+                    state = ValidationState.AWAITING_TEST_VALIDATION
                 elif is_relevant:
                     state = ValidationState.CHANGE_RELEVANT
                 else:
@@ -1048,16 +938,7 @@ Do not reveal a direct code fix when the change is wrong or incomplete.
                 )
 
                 if is_groq_quota_error(exc):
-                    logger.warning(
-                        "Groq quota reached during change evaluation."
-                    )
-
-        # --------------------------------------------------------------
-        # Safe fallback
-        #
-        # NEVER claim that an unverified change is fixed when the LLM
-        # is unavailable.
-        # --------------------------------------------------------------
+                    logger.warning("Groq quota reached during change evaluation.")
 
         return {
             "state": ValidationState.CHANGE_RELEVANT,
@@ -1079,10 +960,6 @@ Do not reveal a direct code fix when the change is wrong or incomplete.
             ),
         }
 
-    # ------------------------------------------------------------------
-    # Test output evaluation
-    # ------------------------------------------------------------------
-
     def evaluate_test_output(
         self,
         test_output: str,
@@ -1096,13 +973,11 @@ Do not reveal a direct code fix when the change is wrong or incomplete.
         It does not execute arbitrary developer code.
         """
 
-        from debug2learn.agents.decoder import DecoderAgent
+        from backend.agents.decoder import DecoderAgent
 
         decoder = DecoderAgent(self.config)
 
-        test_result = decoder.parse_test_output(
-            test_output
-        )
+        test_result = decoder.parse_test_output(test_output)
 
         if test_result.all_passed:
             return {
@@ -1120,16 +995,13 @@ Do not reveal a direct code fix when the change is wrong or incomplete.
             }
 
         fail_desc = (
-            f"{test_result.failed} failed, "
-            f"{test_result.passed} passed"
+            f"{test_result.failed} failed, {test_result.passed} passed"
             if test_result.passed > 0
             else f"{test_result.failed} failed"
         )
 
         if test_result.errors > 0:
-            fail_desc += (
-                f", {test_result.errors} error(s)"
-            )
+            fail_desc += f", {test_result.errors} error(s)"
 
         return {
             "state": ValidationState.TEST_FAILED,
@@ -1145,10 +1017,6 @@ Do not reveal a direct code fix when the change is wrong or incomplete.
             ),
         }
 
-    # ------------------------------------------------------------------
-    # Librarian delegation
-    # ------------------------------------------------------------------
-
     def find_resources(
         self,
         concept: str,
@@ -1156,7 +1024,7 @@ Do not reveal a direct code fix when the change is wrong or incomplete.
     ) -> list[LearningResource]:
         """Delegate resource discovery to the Librarian agent."""
 
-        from debug2learn.agents.librarian import LibrarianAgent
+        from backend.agents.librarian import LibrarianAgent
 
         librarian = LibrarianAgent(self.config)
 
@@ -1167,10 +1035,6 @@ Do not reveal a direct code fix when the change is wrong or incomplete.
         )
 
         return librarian.find_resources(request)
-
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
 
     def _build_code_section(
         self,
@@ -1187,12 +1051,7 @@ Do not reveal a direct code fix when the change is wrong or incomplete.
         for path, code in code_mapping.items():
             truncated = code[:max_chars_per_file]
 
-            sections.append(
-                f"\n### {path}\n"
-                f"```python\n"
-                f"{truncated}\n"
-                f"```\n"
-            )
+            sections.append(f"\n### {path}\n```python\n{truncated}\n```\n")
 
         return "\n".join(sections)
 
@@ -1296,18 +1155,12 @@ Do not reveal a direct code fix when the change is wrong or incomplete.
         """Normalize LLM evidence into a list of strings."""
 
         if isinstance(evidence, list):
-            return [
-                str(item)
-                for item in evidence
-                if item is not None
-            ]
+            return [str(item) for item in evidence if item is not None]
 
         if isinstance(evidence, str) and evidence.strip():
             return [evidence.strip()]
 
-        return [
-            "The diagnosis was generated from the available code evidence."
-        ]
+        return ["The diagnosis was generated from the available code evidence."]
 
     def _safe_confidence(
         self,

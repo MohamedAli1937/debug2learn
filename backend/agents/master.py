@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import logging
 
-from debug2learn.agents.base import BaseAgent, is_groq_quota_error
-from debug2learn.config.settings import AppConfig
-from debug2learn.core.models import (
+from backend.agents.base import BaseAgent, is_groq_quota_error
+from backend.config.settings import AppConfig
+from backend.core.models import (
     DebuggingPlan,
     DebuggingStep,
     Hint,
@@ -78,11 +78,7 @@ class MasterAgent(BaseAgent):
 
         step1 = plan.steps[0] if plan.steps else None
 
-        target = (
-            plan.root_cause_location
-            or plan.bug_location
-            or "the source code"
-        )
+        target = plan.root_cause_location or plan.bug_location or "the source code"
 
         failure_loc = plan.failure_location or (
             "test suite"
@@ -147,22 +143,14 @@ Instructions:
                 logger.error(f"Master initial guidance failed: {e}")
 
                 if is_groq_quota_error(e):
-                    logger.warning(
-                        "Groq quota reached during initial guidance."
-                    )
+                    logger.warning("Groq quota reached during initial guidance.")
 
         target_display = f"`{target}`"
 
-        failure_display = (
-            f"`{failure_loc}`"
-            if failure_loc
-            else "`the test suite`"
-        )
+        failure_display = f"`{failure_loc}`" if failure_loc else "`the test suite`"
 
         step_description = (
-            step1.description
-            if step1
-            else "Inspect the relevant implementation."
+            step1.description if step1 else "Inspect the relevant implementation."
         )
 
         return (
@@ -224,18 +212,10 @@ Instructions:
         root_cause = (
             plan.root_cause_location
             if plan
-            else (
-                step.target_symbol
-                or step.target_file
-                or "the relevant code"
-            )
+            else (step.target_symbol or step.target_file or "the relevant code")
         )
 
-        concept = (
-            plan.concept
-            if plan
-            else getattr(step, "concept", "")
-        )
+        concept = plan.concept if plan else getattr(step, "concept", "")
 
         prompt = f"""Generate a progressive debugging hint ({level_name}).
 
@@ -293,22 +273,12 @@ Rules:
                 logger.error(f"Master hint generation failed: {e}")
 
                 if is_groq_quota_error(e):
-                    logger.warning(
-                        "Groq quota reached during hint generation."
-                    )
+                    logger.warning("Groq quota reached during hint generation.")
 
         if not content:
-            target = (
-                step.target_symbol
-                or step.target_file
-                or "the relevant code"
-            )
+            target = step.target_symbol or step.target_file or "the relevant code"
 
-            logic = (
-                relevant_logic
-                or hypothesis
-                or "the diagnosed behavior"
-            )
+            logic = relevant_logic or hypothesis or "the diagnosed behavior"
 
             if level == HintLevel.CONCEPTUAL:
                 content = (
@@ -336,10 +306,7 @@ Rules:
             level=level,
             content=content,
             step_number=step.step_number,
-            concept=(
-                getattr(step, "concept", "")
-                or (plan.concept if plan else "")
-            ),
+            concept=(getattr(step, "concept", "") or (plan.concept if plan else "")),
         )
 
     def answer_developer_question(
@@ -350,20 +317,15 @@ Rules:
     ) -> str:
         """Answer developer questions using the Socratic method."""
 
-        from debug2learn.core.models import ValidationState, SessionPhase
+        from backend.core.models import SessionPhase, ValidationState
 
-        if (
-            session_state.validation_state
-            in (
-                ValidationState.QUEST_COMPLETED,
-                ValidationState.TEST_PASSED,
-            )
-            or session_state.phase
-            in (
-                SessionPhase.QUEST_COMPLETED,
-                SessionPhase.TEST_PASSED,
-                SessionPhase.COMPLETED,
-            )
+        if session_state.validation_state in (
+            ValidationState.QUEST_COMPLETED,
+            ValidationState.TEST_PASSED,
+        ) or session_state.phase in (
+            SessionPhase.QUEST_COMPLETED,
+            SessionPhase.TEST_PASSED,
+            SessionPhase.COMPLETED,
         ):
             return (
                 "🎉 Excellent! Your tests passed.\n\n"
@@ -383,11 +345,7 @@ Rules:
             if 0 <= current_step < len(plan.steps):
                 step = plan.steps[current_step]
 
-        root_cause = (
-            plan.root_cause_location
-            if plan
-            else "the implementation"
-        )
+        root_cause = plan.root_cause_location if plan else "the implementation"
 
         logic_issue = (
             plan.relevant_logic
@@ -396,9 +354,7 @@ Rules:
         )
 
         hypothesis = (
-            plan.hypothesis
-            if plan and plan.hypothesis
-            else "the Solver's diagnosis"
+            plan.hypothesis if plan and plan.hypothesis else "the Solver's diagnosis"
         )
 
         prompt = f"""The developer asked a question during debugging.
@@ -459,18 +415,12 @@ Rules:
                 logger.error(f"Master Q&A failed: {e}")
 
                 if is_groq_quota_error(e):
-                    logger.warning(
-                        "Groq quota reached during Q&A."
-                    )
+                    logger.warning("Groq quota reached during Q&A.")
 
         target = (
             step.target_symbol
             if step and step.target_symbol
-            else (
-                step.target_file
-                if step and step.target_file
-                else root_cause
-            )
+            else (step.target_file if step and step.target_file else root_cause)
         )
 
         return (

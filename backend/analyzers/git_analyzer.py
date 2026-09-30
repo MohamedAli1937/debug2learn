@@ -18,9 +18,7 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from git import GitCommandNotFound
-    from git import InvalidGitRepositoryError
-    from git import Repo
+    from git import GitCommandNotFound, InvalidGitRepositoryError, Repo
 
     GIT_AVAILABLE = True
 except ImportError:
@@ -246,11 +244,7 @@ class GitAnalyzer:
         result["has_updates"] = True
 
         try:
-            commits = list(
-                self._repo.iter_commits(
-                    f"{local_commit}..{remote_commit}"
-                )
-            )
+            commits = list(self._repo.iter_commits(f"{local_commit}..{remote_commit}"))
 
             result["behind_by"] = len(commits)
 
